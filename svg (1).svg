@@ -1,0 +1,9 @@
+<svg width="500" height="500" xmlns="http://www.w3.org/2000/svg">
+  <rect height="500" width="501" y="0" x="-0.5" stroke="#000" fill="#00ffff"/>
+  <text dominant-baseline="middle" text-anchor="middle" font-family="Noto Sans JP" font-size="24" y="50%" x="50%" fill="#000000">Safe Zen</text>
+</svg>
+
+
+data:image/svg+xml;base64,
+
+data:application/json;base64,
