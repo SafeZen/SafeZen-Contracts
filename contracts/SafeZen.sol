@@ -24,6 +24,8 @@ contract SafeZen is ERC721Enumerable, Ownable, Pausable {
         uint256 price;
         uint256 startTime;
         uint256 endTime;
+        string textHue;
+        string bgHue;
     }
 
     constructor(
@@ -44,7 +46,9 @@ contract SafeZen is ERC721Enumerable, Ownable, Pausable {
             _merchant,
             _price,
             _startTime,
-            _endTime
+            _endTime,
+            randomNum(361, block.difficulty, supply).toString(),
+            randomNum(361, block.timestamp, supply).toString()
         );
 
         policies[supply+1] = newPolicy;
@@ -82,21 +86,21 @@ contract SafeZen is ERC721Enumerable, Ownable, Pausable {
 
         bytes memory p1 = abi.encodePacked(
             '<svg width="500" height="500" xmlns="http://www.w3.org/2000/svg">',
-            '<rect y="0" fill="#00ffff" stroke="#000" x="-0.5" width="500" height="500"/>',
+            '<rect y="0" fill="hsl(',currentPolicy.bgHue,',100%,80%)" stroke="#000" x="-0.5" width="500" height="500"/>',
             '<text dominant-baseline="middle" text-anchor="middle" font-family="Noto Sans JP" font-size="14" y="50" x="50%" fill="#000000">','PolicyHolder: 0x',toAsciiString(currentPolicy.policyHolder),'</text>',
-            '<text dominant-baseline="middle" text-anchor="middle" font-family="Noto Sans JP" font-size="14" y="100" x="50%" fill="#000000">','Provider: ',currentPolicy.merchant,'</text>'
+            '<text dominant-baseline="middle" text-anchor="middle" font-family="Noto Sans JP" font-size="20" y="100" x="50%" fill="#000000">','Provider: ',currentPolicy.merchant,'</text>'
         );
         bytes memory p2 = abi.encodePacked(
-            '<text dominant-baseline="middle" text-anchor="middle" font-family="Noto Sans JP" font-size="14" y="150" x="50%" fill="#000000">','PolicyID: ',Strings.toString(currentPolicy.policyID),'</text>',
-            '<text dominant-baseline="middle" text-anchor="middle" font-family="Noto Sans JP" font-size="14" y="200" x="50%" fill="#000000">','PolicyType: ',currentPolicy.policyType,'</text>',
-            '<text dominant-baseline="middle" text-anchor="middle" font-family="Noto Sans JP" font-size="14" y="250" x="50%" fill="#000000">','Coverage: ',Strings.toString(currentPolicy.coverageAmount),'</text>'
+            '<text dominant-baseline="middle" text-anchor="middle" font-family="Noto Sans JP" font-size="20" y="150" x="50%" fill="#000000">','PolicyID: ',Strings.toString(currentPolicy.policyID),'</text>',
+            '<text dominant-baseline="middle" text-anchor="middle" font-family="Noto Sans JP" font-size="20" y="200" x="50%" fill="#000000">','PolicyType: ',currentPolicy.policyType,'</text>',
+            '<text dominant-baseline="middle" text-anchor="middle" font-family="Noto Sans JP" font-size="20" y="250" x="50%" fill="#000000">','Coverage: ',Strings.toString(currentPolicy.coverageAmount),'</text>'
         );
         bytes memory p3 = abi.encodePacked( 
-            '<text dominant-baseline="middle" text-anchor="middle" font-family="Noto Sans JP" font-size="14" y="300" x="50%" fill="#000000">','Price: ',Strings.toString(currentPolicy.price),'</text>',
-            '<text dominant-baseline="middle" text-anchor="middle" font-family="Noto Sans JP" font-size="14" y="350" x="50%" fill="#000000">','Start Date: ',Strings.toString(startDay),'/',Strings.toString(startMonth),'/',Strings.toString(startYear),'</text>'
+            '<text dominant-baseline="middle" text-anchor="middle" font-family="Noto Sans JP" font-size="20" y="300" x="50%" fill="#000000">','Price: ',Strings.toString(currentPolicy.price),'</text>',
+            '<text dominant-baseline="middle" text-anchor="middle" font-family="Noto Sans JP" font-size="20" y="350" x="50%" fill="#000000">','Start Date: ',Strings.toString(startDay),'/',Strings.toString(startMonth),'/',Strings.toString(startYear),'</text>'
         );
         bytes memory p4 = abi.encodePacked(
-            '<text dominant-baseline="middle" text-anchor="middle" font-family="Noto Sans JP" font-size="14" y="400" x="50%" fill="#000000">','Start Date: ',Strings.toString(endDay),'/',Strings.toString(endMonth),'/',Strings.toString(endYear),'</text>',
+            '<text dominant-baseline="middle" text-anchor="middle" font-family="Noto Sans JP" font-size="20" y="400" x="50%" fill="#000000">','Start Date: ',Strings.toString(endDay),'/',Strings.toString(endMonth),'/',Strings.toString(endYear),'</text>',
             '</svg>'
         );
 
@@ -142,9 +146,6 @@ contract SafeZen is ERC721Enumerable, Ownable, Pausable {
 
         Policy storage currentPolicy = policies[tokenId];
         currentPolicy.policyHolder = to; 
-        // do stuff before every transfer
-        // e.g. check that vote (other than when minted) 
-        // being transferred to registered candidate
     }
     
     // ================= OWNER FUNCTIONS ================= //
