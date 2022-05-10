@@ -7,6 +7,7 @@ import "@openzeppelin/contracts/security/Pausable.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
 import "@openzeppelin/contracts/utils/Strings.sol";
 import "./Base64.sol";
+import "./DateTime.sol";
 
 contract SafeZen is ERC721Enumerable, Ownable, Pausable {
     using Strings for uint256;
@@ -18,7 +19,6 @@ contract SafeZen is ERC721Enumerable, Ownable, Pausable {
     string private _baseURIextended;
 
     struct Policy {
-
         uint256 policyID;
         string policyType;
         uint256 coverageAmount;
@@ -64,6 +64,9 @@ contract SafeZen is ERC721Enumerable, Ownable, Pausable {
     // buildImage
     function buildPolicy(uint256 _tokenId) public view returns(string memory) {
         Policy memory currentPolicy = policies[_tokenId];
+        (uint256 startYear, uint256 startMonth, uint256 startDay) = DateTime.timestampToDate(currentPolicy.startTime);
+        (uint256 endYear, uint256 endMonth, uint256 endDay) = DateTime.timestampToDate(currentPolicy.endTime);
+
 
         bytes memory p1 = abi.encodePacked('<svg width="500" height="500" xmlns="http://www.w3.org/2000/svg">',
               '<rect y="0" fill="#00ffff" stroke="#000" x="-0.5" width="500" height="500"/>',
@@ -75,11 +78,14 @@ contract SafeZen is ERC721Enumerable, Ownable, Pausable {
         );
         bytes memory p3 = abi.encodePacked( 
             '<text dominant-baseline="middle" text-anchor="middle" font-family="Noto Sans JP" font-size="24" y="250" x="50%" fill="#000000">','Price: ',Strings.toString(currentPolicy.price),'</text>',
-            '<text dominant-baseline="middle" text-anchor="middle" font-family="Noto Sans JP" font-size="24" y="300" x="50%" fill="#000000">','Start Date: ',Strings.toString(currentPolicy.startTime),'</text>',
-            '<text dominant-baseline="middle" text-anchor="middle" font-family="Noto Sans JP" font-size="24" y="350" x="50%" fill="#000000">','End Date: ',Strings.toString(currentPolicy.endTime),'</text>',
+            '<text dominant-baseline="middle" text-anchor="middle" font-family="Noto Sans JP" font-size="24" y="300" x="50%" fill="#000000">','Start Date: ',Strings.toString(startDay),'/',Strings.toString(startMonth),'/',Strings.toString(startYear),'</text>'
+        );
+        bytes memory p4 = abi.encodePacked(
+            '<text dominant-baseline="middle" text-anchor="middle" font-family="Noto Sans JP" font-size="24" y="300" x="50%" fill="#000000">','Start Date: ',Strings.toString(endDay),'/',Strings.toString(endMonth),'/',Strings.toString(endYear),'</text>',
             '</svg>'
         );
-        return Base64.encode(bytes.concat(p1,p2,p3));
+
+        return Base64.encode(bytes.concat(p1,p2,p3,p4));
     }
 
     // build metadata
@@ -106,7 +112,6 @@ contract SafeZen is ERC721Enumerable, Ownable, Pausable {
     }
 
     // getPolicies: do this off-chain with moralis
-
     function getHolder(uint256 _policyID) public view returns (Policy memory) {
         return policies[_policyID];
     }
