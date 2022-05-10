@@ -127,8 +127,10 @@ contract SafeZen is ERC721Enumerable, Ownable, Pausable {
     }
 
     // getPolicies: do this off-chain with moralis
-    function getHolder(uint256 _policyID) public view returns (Policy memory) {
-        return policies[_policyID];
+    function getHolder(uint256 _policyID) public view returns (address) {
+        Policy memory currentPolicy = policies[_policyID];
+        address holder = currentPolicy.policyHolder;
+        return holder;
     }
 
     function _beforeTokenTransfer(
