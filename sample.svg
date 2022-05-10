@@ -1,0 +1,19 @@
+<svg width="500" height="500" xmlns="http://www.w3.org/2000/svg">
+  <rect height="500" width="501" y="0" x="-0.5" stroke="#000" fill="#00ffff"/>
+  <text dominant-baseline="middle" text-anchor="middle" font-family="Noto Sans JP" font-size="24" y="50%" x="50%" fill="#000000">Safe Zen</text>
+</svg>
+
+<svg width="500" height="500" xmlns="http://www.w3.org/2000/svg">
+  <rect y="0" fill="#00ffff" stroke="#000" x="-0.5" width="500" height="500"/>
+  <text transform="matrix(1 0 0 1 0 0)" fill="#000000" stroke="#000" stroke-width="0" x="200.6875" y="125.5" font-size="24" font-family="Noto Sans JP" text-anchor="start" xml:space="preserve">Merchant:</text>
+  <text transform="matrix(1 0 0 1 0 0)" xml:space="preserve" text-anchor="start" font-family="Noto Sans JP" font-size="24" y="160.5" x="200.33594" stroke-width="0" stroke="#000" fill="#000000">Policy ID:</text>
+  <text xml:space="preserve" text-anchor="start" font-family="Noto Sans JP" font-size="24" y="200.5" x="200.6875" stroke-width="0" stroke="#000" fill="#000000">Coverage:</text>
+  <text transform="matrix(1 0 0 1 0 0)" xml:space="preserve" text-anchor="start" font-family="Noto Sans JP" font-size="24" y="239.5" x="222.84766" stroke-width="0" stroke="#000" fill="#000000">Type:</text>
+  <text transform="matrix(1 0 0 1 0 0)" xml:space="preserve" text-anchor="start" font-family="Noto Sans JP" font-size="24" y="270.5" x="222.00781" stroke-width="0" stroke="#000" fill="#000000">Price:</text>
+  <text xml:space="preserve" text-anchor="start" font-family="Noto Sans JP" font-size="24" y="296.5" x="224" stroke-width="0" stroke="#000" fill="#000000">Start:</text>
+  <text xml:space="preserve" text-anchor="start" font-family="Noto Sans JP" font-size="24" y="321.5" x="227.33594" stroke-width="0" stroke="#000" fill="#000000">End:</text>
+</svg>
+
+data:image/svg+xml;base64,
+
+data:application/json;base64,

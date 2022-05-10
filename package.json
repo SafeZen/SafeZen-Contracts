@@ -1,11 +1,47 @@
 {
-  "name": "hardhat-project",
-  "devDependencies": {
-    "@nomiclabs/hardhat-ethers": "^2.0.5",
-    "@nomiclabs/hardhat-waffle": "^2.0.3",
-    "chai": "^4.3.6",
-    "ethereum-waffle": "^3.4.4",
-    "ethers": "^5.6.5",
-    "hardhat": "^2.9.3"
-  }
+	"name": "blockchain",
+	"version": "1.0.0",
+	"description": "",
+	"main": "index.js",
+	"scripts": {
+		"start": "npx hardhat node --tags SafeZen",
+		"test": "npx hardhat test",
+		"deploy-rinkeby": "npx hardhat deploy --network rinkeby --tags SafeZen",
+		"deploy-mainnet": "npx hardhat deploy --network mainnet --tags SafeZen",
+		"verify-mainnet": "npx hardhat --network mainnet etherscan-verify",
+		"verify-rinkeby": "npx hardhat --network rinkeby etherscan-verify"
+	},
+	"author": "",
+	"license": "ISC",
+	"dependencies": {
+		"@ethersproject/hardware-wallets": "^5.5.0",
+		"@nomiclabs/hardhat-etherscan": "^2.1.8",
+		"@nomiclabs/hardhat-waffle": "^2.0.1",
+		"@openzeppelin/contracts": "^4.4.2",
+		"@openzeppelin/contracts-upgradeable": "^4.4.1",
+		"@openzeppelin/hardhat-upgrades": "^1.12.0",
+		"@openzeppelin/test-helpers": "^0.5.15",
+		"@typechain/ethers-v5": "^5.0.0",
+		"@typechain/hardhat": "^1.0.1",
+		"@types/chai": "^4.2.13",
+		"@types/mocha": "^7.0.2",
+		"@types/node": "^14.11.8",
+		"axios": "^0.24.0",
+		"chai": "^4.3.4",
+		"dotenv": "^10.0.0",
+		"ethereum-waffle": "^3.4.0",
+		"fs-extra": "^10.0.0",
+		"hardhat": "^2.8.4",
+		"hardhat-deploy": "^0.9.24",
+		"hardhat-gas-reporter": "^1.0.6",
+		"hardhat-typechain": "^0.3.5",
+		"ts-generator": "^0.1.1",
+		"ts-node": "^8.10.2",
+		"typechain": "^4.0.1",
+		"typescript": "^4.5.4"
+	},
+	"devDependencies": {
+		"@nomiclabs/hardhat-ethers": "npm:hardhat-deploy-ethers@^0.3.0-beta.13",
+		"ethers": "^5.5.2"
+	}
 }
