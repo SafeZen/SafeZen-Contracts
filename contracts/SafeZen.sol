@@ -131,6 +131,20 @@ contract SafeZen is ERC721Enumerable, Ownable, Pausable {
         return policies[_policyID];
     }
 
+    function _beforeTokenTransfer(
+        address from,
+        address to,
+        uint256 tokenId
+    ) internal virtual override(ERC721Enumerable) {
+        super._beforeTokenTransfer(from, to, tokenId);
+
+        Policy storage currentPolicy = policies[tokenId];
+        currentPolicy.policyHolder = to; 
+        // do stuff before every transfer
+        // e.g. check that vote (other than when minted) 
+        // being transferred to registered candidate
+    }
+    
     // ================= OWNER FUNCTIONS ================= //
     function pause() public onlyOwner {
         _pause();
