@@ -1,5 +1,24 @@
 //SPDX-License-Identifier: MIT
 pragma solidity ^0.8.0;
+import {
+    ISuperfluid,
+    ISuperToken,
+    ISuperAgreement,
+    SuperAppDefinitions
+} from "@superfluid-finance/ethereum-contracts/contracts/interfaces/superfluid/ISuperfluid.sol";
+
+import {
+    IConstantFlowAgreementV1
+} from "@superfluid-finance/ethereum-contracts/contracts/interfaces/agreements/IConstantFlowAgreementV1.sol";
+
+import {
+    CFAv1Library
+} from "@superfluid-finance/ethereum-contracts/contracts/apps/CFAv1Library.sol";
+
+import {
+    SuperAppBase
+} from "@superfluid-finance/ethereum-contracts/contracts/apps/SuperAppBase.sol";
+import "@openzeppelin/contracts/utils/structs/EnumerableSet.sol";
 
 import "hardhat/console.sol";
 import "@openzeppelin/contracts/token/ERC721/extensions/ERC721Enumerable.sol";
@@ -9,9 +28,17 @@ import "@openzeppelin/contracts/utils/Strings.sol";
 import "./Base64.sol";
 import "./DateTime.sol";
 
-contract SafeZen is ERC721Enumerable, Ownable, Pausable {
+contract SafeZen is ERC721Enumerable, Ownable, Pausable, SuperAppBase {
     using Strings for uint256;
-    
+
+    // SUPERFLUID PARAMETERS
+    ISuperfluid private _host; // host
+    IConstantFlowAgreementV1 private _cfa; // the stored constant flow agreement class address
+    ISuperToken private _acceptedToken; // accepted token
+
+    using CFAv1Library for CFAv1Library.InitData;
+    CFAv1Library.InitData public cfaV1; //initialize cfaV1 variable
+
     mapping (uint256 => Policy) public policies;
     string private _baseURIextended;
 
@@ -30,9 +57,35 @@ contract SafeZen is ERC721Enumerable, Ownable, Pausable {
 
     constructor(
         string memory _name,
-        string memory _symbol
+        string memory _symbol,
+        ISuperfluid host,
+        IConstantFlowAgreementV1 cfa,
+        ISuperToken acceptedToken
     ) ERC721(_name, _symbol) {
+        require(address(host) != address(0), "host is nil");
+        require(address(cfa) != address(0), "cfa is nil");
+        require(address(acceptedToken) != address(0), "superToken1 is nil");
 
+        _host = host;
+        _cfa = cfa;
+        _acceptedToken = acceptedToken;
+
+        uint256 configWord =
+            SuperAppDefinitions.APP_LEVEL_FINAL |
+            SuperAppDefinitions.BEFORE_AGREEMENT_CREATED_NOOP |
+            SuperAppDefinitions.BEFORE_AGREEMENT_UPDATED_NOOP |
+            SuperAppDefinitions.BEFORE_AGREEMENT_TERMINATED_NOOP;
+
+        host.registerApp(configWord);
+        cfaV1 = CFAv1Library.InitData(
+        host,
+        //here, we are deriving the address of the CFA using the host contract
+        IConstantFlowAgreementV1(
+            address(host.getAgreementClass(
+                    keccak256("org.superfluid-finance.agreements.ConstantFlowAgreement.v1")
+                ))
+            )
+        );
     }
     
     function mint(string memory _policyType, uint256 _coverageAmount, string memory _merchant, uint256 _price, uint256 _startTime, uint256 _endTime) public payable {
@@ -155,5 +208,127 @@ contract SafeZen is ERC721Enumerable, Ownable, Pausable {
 
     function unpause() public onlyOwner {
         _unpause();
+    }
+
+    /**************************************************************************
+     * SuperApp callbacks
+     *************************************************************************/
+
+    function beforeAgreementCreated(
+        ISuperToken superToken,
+        address agreementClass,
+        bytes32 /*agreementId*/,
+        bytes calldata /*agreementData*/,
+        bytes calldata ctx
+    )
+        external view override
+        onlyHost
+        onlyExpected(superToken, agreementClass)
+        returns (bytes memory cbdata)
+    {
+        cbdata = _beforePlay(ctx);
+    }
+
+    function afterAgreementCreated(
+        ISuperToken /* superToken */,
+        address agreementClass,
+        bytes32 agreementId,
+        bytes calldata /*agreementData*/,
+        bytes calldata cbdata,
+        bytes calldata ctx
+    )
+        external override
+        onlyHost
+        returns (bytes memory newCtx)
+    {
+        return _play(ctx, agreementClass, agreementId, cbdata);
+    }
+
+    function beforeAgreementUpdated(
+        ISuperToken superToken,
+        address agreementClass,
+        bytes32 /*agreementId*/,
+        bytes calldata /*agreementData*/,
+        bytes calldata ctx
+    )
+        external view override
+        onlyHost
+        onlyExpected(superToken, agreementClass)
+        returns (bytes memory cbdata)
+    {
+        cbdata = _beforePlay(ctx);
+    }
+
+    function afterAgreementUpdated(
+        ISuperToken /* superToken */,
+        address agreementClass,
+        bytes32 agreementId,
+        bytes calldata /*agreementData*/,
+        bytes calldata cbdata,
+        bytes calldata ctx
+    )
+        external override
+        onlyHost
+        returns (bytes memory newCtx)
+    {
+        return _play(ctx, agreementClass, agreementId, cbdata);
+    }
+
+    function beforeAgreementTerminated(
+        ISuperToken superToken,
+        address agreementClass,
+        bytes32 /*agreementId*/,
+        bytes calldata /*agreementData*/,
+        bytes calldata /*ctx*/
+    )
+        external view override
+        onlyHost
+        returns (bytes memory cbdata)
+    {
+        // According to the app basic law, we should never revert in a termination callback
+        if (!_isSameToken(superToken) || !_isCFAv1(agreementClass)) return abi.encode(true);
+        return abi.encode(false);
+    }
+
+    ///
+    function afterAgreementTerminated(
+        ISuperToken /* superToken */,
+        address /* agreementClass */,
+        bytes32 /* agreementId */,
+        bytes calldata agreementData,
+        bytes calldata cbdata,
+        bytes calldata ctx
+    )
+        external override
+        onlyHost
+        returns (bytes memory newCtx)
+    {
+        // According to the app basic law, we should never revert in a termination callback
+        (bool shouldIgnore) = abi.decode(cbdata, (bool));
+        if (shouldIgnore) return ctx;
+        // note that msgSender can be either flow sender, receiver or liquidator
+        // one must decode agreementData to determine who is the actual player
+        (address player, ) = abi.decode(agreementData, (address, address));
+        return _quit(player, ctx);
+    }
+
+    function _isSameToken(ISuperToken superToken) private view returns (bool) {
+        return address(superToken) == address(_acceptedToken);
+    }
+
+    function _isCFAv1(address agreementClass) private view returns (bool) {
+        return ISuperAgreement(agreementClass).agreementType()
+            == keccak256("org.superfluid-finance.agreements.ConstantFlowAgreement.v1");
+    }
+
+    modifier onlyHost() {
+        require(msg.sender == address(_host), "LotterySuperApp: support only one host");
+        _;
+    }
+
+    modifier onlyExpected(ISuperToken superToken, address agreementClass) {
+        require(_isSameToken(superToken), "LotterySuperApp: not accepted token");
+        require(_isCFAv1(agreementClass), "LotterySuperApp: only CFAv1 supported");
+        _;
     }
 }
