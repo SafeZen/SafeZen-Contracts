@@ -21,6 +21,7 @@
 		"@openzeppelin/contracts-upgradeable": "^4.4.1",
 		"@openzeppelin/hardhat-upgrades": "^1.12.0",
 		"@openzeppelin/test-helpers": "^0.5.15",
+		"@superfluid-finance/ethereum-contracts": "^1.2.2",
 		"@typechain/ethers-v5": "^5.0.0",
 		"@typechain/hardhat": "^1.0.1",
 		"@types/chai": "^4.2.13",
