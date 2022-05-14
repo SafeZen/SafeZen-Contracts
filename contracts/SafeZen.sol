@@ -48,9 +48,10 @@ contract SafeZen is ERC721Enumerable, Ownable, Pausable, SuperAppBase {
         string policyType;
         uint256 coverageAmount;
         string merchant;
-        uint256 price;
-        uint256 startTime;
-        uint256 endTime;
+        uint256 flowRate;
+        uint256 purchaseTime;
+        uint256 activatedTime;
+        bool isActive;
         string textHue;
         string bgHue;
     }
@@ -88,25 +89,41 @@ contract SafeZen is ERC721Enumerable, Ownable, Pausable, SuperAppBase {
         );
     }
 
-    function create() private {}
+    function activatePolicy(uint256 _policyId) public {
+        address storage currentPolicy = policies[_policyId];
+        require(currentPolicy.policyHolder == msg.sender, "NOT POLICY HOLDER");
+        require(currentPolicy.purchaseTime <= block.timestamp, "POLICY NOT ELIGIBLE FOR ACTIVATION");
+        require(currentPolicy.isActive == false, "POLICY IS ALREADY ACTIVE");
 
-    function endFlow() private {}
+        // Update policy's activatedtime and create new Superfluid flow from User to SmartContract 
+        currentPolicy.activatedTime = block.timestamp;
+        currentPolicy.isActive = true;
+        _cfa.createFlow(_acceptedToken, address(this), currentPolicy.flowRate);
+    }
+
+    function deactivatePolicy(uint256 _policyId) public {
+        address storage currentPolicy = policies[_policyId];
+        require(currentPolicy.policyHolder == msg.sender, "NOT POLICY HOLDER");
+        require(currentPolicy.isActive == true, "POLICY IS NOT ACTIVATED");
+
+        currentPolicy.isActive = false;
+        _cfa.deleteFlow(_acceptedToken, msg.sender, address(this));
+    }
 
 
-
-
-    function mint(string memory _policyType, uint256 _coverageAmount, string memory _merchant, uint256 _price, uint256 _startTime, uint256 _endTime) public payable {
+    function mint(string memory _policyType, uint256 _coverageAmount, string memory _merchant, int96 _flowRate, uint256 _purchaseTime) public payable {
         uint256 supply = totalSupply();
 
         Policy memory newPolicy = Policy(
             msg.sender,
-            supply + 1,
+            supply + 1, // tokenID
             _policyType,
             _coverageAmount,
             _merchant,
-            _price,
-            _startTime,
-            _endTime,
+            _flowRate,
+            _purchaseTime,
+            0, // Active Duration
+            false, // If policy is Active
             randomNum(361, block.difficulty, supply).toString(),
             randomNum(361, block.timestamp, supply).toString()
         );
@@ -139,11 +156,19 @@ contract SafeZen is ERC721Enumerable, Ownable, Pausable, SuperAppBase {
 
     // buildImage
     function buildPolicy(uint256 _tokenId) public view returns(string memory) {
+        // Retrieve policy 
         Policy memory currentPolicy = policies[_tokenId];
-        (uint256 startYear, uint256 startMonth, uint256 startDay) = DateTime.timestampToDate(currentPolicy.startTime);
-        (uint256 endYear, uint256 endMonth, uint256 endDay) = DateTime.timestampToDate(currentPolicy.endTime);
-        console.log(toAsciiString(currentPolicy.policyHolder));
+        
+        // Formate date format for purchaseTime
+        (uint256 startYear, uint256 startMonth, uint256 startDay) = DateTime.timestampToDate(currentPolicy.purchaseTime);
+       
+        // Calculating activeDuration of the policy
+        uint256 activatedDuration = 0;
+        if (currentPolicy.activatedTime != 0) { 
+            activatedDuration = block.timestamp - currentPolicy.activatedTime;
+        }
 
+        // ========== BUILDING POLICY ON-CHAIN SVG IMAG ========== /
         bytes memory p1 = abi.encodePacked(
             '<svg width="500" height="500" xmlns="http://www.w3.org/2000/svg">',
             '<rect y="0" fill="hsl(',currentPolicy.bgHue,',100%,80%)" stroke="#000" x="-0.5" width="500" height="500"/>',
@@ -156,11 +181,12 @@ contract SafeZen is ERC721Enumerable, Ownable, Pausable, SuperAppBase {
             '<text dominant-baseline="middle" text-anchor="middle" font-family="Noto Sans JP" font-size="20" y="250" x="50%" fill="#000000">','Coverage: ',Strings.toString(currentPolicy.coverageAmount),'</text>'
         );
         bytes memory p3 = abi.encodePacked( 
-            '<text dominant-baseline="middle" text-anchor="middle" font-family="Noto Sans JP" font-size="20" y="300" x="50%" fill="#000000">','Price: ',Strings.toString(currentPolicy.price),'</text>',
-            '<text dominant-baseline="middle" text-anchor="middle" font-family="Noto Sans JP" font-size="20" y="350" x="50%" fill="#000000">','Start Date: ',Strings.toString(startDay),'/',Strings.toString(startMonth),'/',Strings.toString(startYear),'</text>'
+            '<text dominant-baseline="middle" text-anchor="middle" font-family="Noto Sans JP" font-size="20" y="300" x="50%" fill="#000000">','Price: ',Strings.toString(currentPolicy.flowRate),'</text>',
+            '<text dominant-baseline="middle" text-anchor="middle" font-family="Noto Sans JP" font-size="20" y="350" x="50%" fill="#000000">','Purchase Date: ',Strings.toString(startDay),'/',Strings.toString(startMonth),'/',Strings.toString(startYear),'</text>'
         );
         bytes memory p4 = abi.encodePacked(
-            '<text dominant-baseline="middle" text-anchor="middle" font-family="Noto Sans JP" font-size="20" y="400" x="50%" fill="#000000">','Start Date: ',Strings.toString(endDay),'/',Strings.toString(endMonth),'/',Strings.toString(endYear),'</text>',
+            '<text dominant-baseline="middle" text-anchor="middle" font-family="Noto Sans JP" font-size="20" y="400" x="50%" fill="#000000">','Duration: ',Strings.toString(activatedDuration),'</text>',
+            '<text dominant-baseline="middle" text-anchor="middle" font-family="Noto Sans JP" font-size="20" y="400" x="50%" fill="#000000">','isActive: ',currentPolicy.isActive,'</text>',
             '</svg>'
         );
 
@@ -203,7 +229,8 @@ contract SafeZen is ERC721Enumerable, Ownable, Pausable, SuperAppBase {
         uint256 tokenId
     ) internal virtual override(ERC721Enumerable) {
         super._beforeTokenTransfer(from, to, tokenId);
-
+        
+        // TODO: Deactivate Deactivate flow from old holder
         Policy storage currentPolicy = policies[tokenId];
         currentPolicy.policyHolder = to; 
     }
