@@ -51,6 +51,7 @@ contract SafeZen is ERC721Enumerable, Ownable, Pausable, SuperAppBase {
         uint256 flowRate;
         uint256 purchaseTime;
         uint256 activatedTime;
+        uint256 amountPaid;
         bool isActive;
         string textHue;
         string bgHue;
@@ -89,6 +90,9 @@ contract SafeZen is ERC721Enumerable, Ownable, Pausable, SuperAppBase {
         );
     }
 
+    /**************************************************************************
+     * INSURANCE POLICY FUNCTIONS
+     *************************************************************************/
     function activatePolicy(uint256 _policyId) public {
         address storage currentPolicy = policies[_policyId];
         require(currentPolicy.policyHolder == msg.sender, "NOT POLICY HOLDER");
@@ -101,12 +105,15 @@ contract SafeZen is ERC721Enumerable, Ownable, Pausable, SuperAppBase {
         _cfa.createFlow(_acceptedToken, address(this), currentPolicy.flowRate);
     }
 
+    //TODO: figure out how flowrate works 
     function deactivatePolicy(uint256 _policyId) public {
         address storage currentPolicy = policies[_policyId];
         require(currentPolicy.policyHolder == msg.sender, "NOT POLICY HOLDER");
         require(currentPolicy.isActive == true, "POLICY IS NOT ACTIVATED");
 
         currentPolicy.isActive = false;
+        currentPolicy.amountPaid += (block.timestamp - currentPolicy.activatedTime) * currentPolicy.flowRate;
+
         _cfa.deleteFlow(_acceptedToken, msg.sender, address(this));
     }
 
@@ -124,6 +131,7 @@ contract SafeZen is ERC721Enumerable, Ownable, Pausable, SuperAppBase {
             _purchaseTime,
             0, // Active Duration
             false, // If policy is Active
+            0, // amountPaid
             randomNum(361, block.difficulty, supply).toString(),
             randomNum(361, block.timestamp, supply).toString()
         );
@@ -132,6 +140,9 @@ contract SafeZen is ERC721Enumerable, Ownable, Pausable, SuperAppBase {
         _safeMint(msg.sender, supply+1);
     }
 
+    /**************************************************************************
+     * UTIL FUNCTIONS
+     *************************************************************************/
     function randomNum(uint256 _mod, uint256 _seed, uint256 _salt) public view returns(uint256){
        uint256 num = uint256(keccak256(abi.encodePacked(block.timestamp, msg.sender, _seed, _salt))) % _mod;
 
@@ -166,6 +177,14 @@ contract SafeZen is ERC721Enumerable, Ownable, Pausable, SuperAppBase {
         uint256 activatedDuration = 0;
         if (currentPolicy.activatedTime != 0) { 
             activatedDuration = block.timestamp - currentPolicy.activatedTime;
+        }
+        
+        // Calculating amountPaid for policy
+        uint256 memory totalAmtPaid;
+        if (currentPolicy.isActive) {
+            totalAmtPaid = currentPolicy.amountPaid + (block.timestamp - currentPolicy.activatedTime) * currentPolicy.flowRate;
+        } else {
+            totalAmtPaid = currentPolicy.amountPaid;
         }
 
         // ========== BUILDING POLICY ON-CHAIN SVG IMAG ========== /
