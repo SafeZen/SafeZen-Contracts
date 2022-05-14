@@ -105,7 +105,7 @@ contract SafeZen is ERC721Enumerable, Ownable, Pausable, SuperAppBase {
         _cfa.createFlow(_acceptedToken, address(this), currentPolicy.flowRate);
     }
 
-    //TODO: figure out how flowrate works 
+    //TODO: figure out how flowrate works and calculation with default timestamp 
     function deactivatePolicy(uint256 _policyId) public {
         address storage currentPolicy = policies[_policyId];
         require(currentPolicy.policyHolder == msg.sender, "NOT POLICY HOLDER");
@@ -206,6 +206,7 @@ contract SafeZen is ERC721Enumerable, Ownable, Pausable, SuperAppBase {
         bytes memory p4 = abi.encodePacked(
             '<text dominant-baseline="middle" text-anchor="middle" font-family="Noto Sans JP" font-size="20" y="400" x="50%" fill="#000000">','Duration: ',Strings.toString(activatedDuration),'</text>',
             '<text dominant-baseline="middle" text-anchor="middle" font-family="Noto Sans JP" font-size="20" y="400" x="50%" fill="#000000">','isActive: ',currentPolicy.isActive,'</text>',
+            '<text dominant-baseline="middle" text-anchor="middle" font-family="Noto Sans JP" font-size="20" y="400" x="50%" fill="#000000">','Amount Paid: ',totalAmtPaid.toString(),'</text>',
             '</svg>'
         );
 
