@@ -76,7 +76,7 @@ contract SafeZen is ERC721Enumerable, Ownable, Pausable, SuperAppBase {
             SuperAppDefinitions.BEFORE_AGREEMENT_UPDATED_NOOP |
             SuperAppDefinitions.BEFORE_AGREEMENT_TERMINATED_NOOP;
 
-        host.registerApp(configWord);
+        host.registerApp(configWord); // Enable your Super App to be registered within Superfluid host contract's Super App manifest
         cfaV1 = CFAv1Library.InitData(
         host,
         //here, we are deriving the address of the CFA using the host contract
@@ -87,7 +87,14 @@ contract SafeZen is ERC721Enumerable, Ownable, Pausable, SuperAppBase {
             )
         );
     }
-    
+
+    function create() private {}
+
+    function endFlow() private {}
+
+
+
+
     function mint(string memory _policyType, uint256 _coverageAmount, string memory _merchant, uint256 _price, uint256 _startTime, uint256 _endTime) public payable {
         uint256 supply = totalSupply();
 
@@ -213,20 +220,21 @@ contract SafeZen is ERC721Enumerable, Ownable, Pausable, SuperAppBase {
     /**************************************************************************
      * SuperApp callbacks
      *************************************************************************/
-
+    // Run before the call to the agreement contract contract will be run.
+    // If there is logic inside this function, it will run before teh stream is created by the user
     function beforeAgreementCreated(
-        ISuperToken superToken,
-        address agreementClass,
+        ISuperToken superToken, // the protocol will pass the SUperToken that's being used in the call to the constant flow agreement contract here
+        address agreementClass, // constant flow agreement contract
         bytes32 /*agreementId*/,
         bytes calldata /*agreementData*/,
-        bytes calldata ctx
+        bytes calldata ctx // contains data about the call ot the constant flow agreement contract
     )
         external view override
         onlyHost
         onlyExpected(superToken, agreementClass)
         returns (bytes memory cbdata)
     {
-        cbdata = _beforePlay(ctx);
+        cbdata = _beforePlay(ctx); // TO EDIT
     }
 
     function afterAgreementCreated(
@@ -241,7 +249,7 @@ contract SafeZen is ERC721Enumerable, Ownable, Pausable, SuperAppBase {
         onlyHost
         returns (bytes memory newCtx)
     {
-        return _play(ctx, agreementClass, agreementId, cbdata);
+        return _play(ctx, agreementClass, agreementId, cbdata); // TO EDIT
     }
 
     function beforeAgreementUpdated(
@@ -256,7 +264,7 @@ contract SafeZen is ERC721Enumerable, Ownable, Pausable, SuperAppBase {
         onlyExpected(superToken, agreementClass)
         returns (bytes memory cbdata)
     {
-        cbdata = _beforePlay(ctx);
+        cbdata = _beforePlay(ctx); // TO EDIT
     }
 
     function afterAgreementUpdated(
@@ -271,7 +279,7 @@ contract SafeZen is ERC721Enumerable, Ownable, Pausable, SuperAppBase {
         onlyHost
         returns (bytes memory newCtx)
     {
-        return _play(ctx, agreementClass, agreementId, cbdata);
+        return _play(ctx, agreementClass, agreementId, cbdata); // TO EDIT
     }
 
     function beforeAgreementTerminated(
@@ -309,7 +317,7 @@ contract SafeZen is ERC721Enumerable, Ownable, Pausable, SuperAppBase {
         // note that msgSender can be either flow sender, receiver or liquidator
         // one must decode agreementData to determine who is the actual player
         (address player, ) = abi.decode(agreementData, (address, address));
-        return _quit(player, ctx);
+        return _quit(player, ctx); // TO EDIT
     }
 
     function _isSameToken(ISuperToken superToken) private view returns (bool) {
