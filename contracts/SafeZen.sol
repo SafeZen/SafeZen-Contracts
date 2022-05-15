@@ -252,7 +252,12 @@ contract SafeZen is ERC721Enumerable, Ownable, Pausable, SuperAppBase {
         
         // TODO: Deactivate Deactivate flow from old holder
         Policy storage currentPolicy = policies[tokenId];
+        // Change policy holder wallet address
         currentPolicy.policyHolder = to; 
+        // Reset necessary parameters for the policy
+        currentPolicy.isActive = false;
+        currentPolicy.activatedTime = 0;
+        currentPolicy.amountPaid = 0; 
     }
     
     // ================= OWNER FUNCTIONS ================= //
