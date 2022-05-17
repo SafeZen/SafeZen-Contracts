@@ -40,7 +40,7 @@ contract SafeZen is ERC721Enumerable, Ownable, Pausable {
         string policyType; // VEHICLE-CAR, VEHICLE-VAN
         uint256 coverageAmount; 
         string merchant;
-        int96 minFlowRate;
+        uint256 minFlowRate;
         uint256 purchaseTime;
         bool isActive;
         uint256 amountPaid;
@@ -70,7 +70,7 @@ contract SafeZen is ERC721Enumerable, Ownable, Pausable {
         govContract = GovContract(govCA);
     }
 
-    function mint(string memory _policyType, uint256 _coverageAmount, string memory _merchant, int96 _minFlowRate, uint256 _purchaseTime, uint256 _baseAmount) public {
+    function mint(string memory _policyType, uint256 _coverageAmount, string memory _merchant, uint256 _minFlowRate, uint256 _purchaseTime, uint256 _baseAmount) public  payable{
         uint256 supply = totalSupply();
 
         Policy memory newPolicy = Policy(
@@ -91,6 +91,7 @@ contract SafeZen is ERC721Enumerable, Ownable, Pausable {
         policies[supply+1] = newPolicy;
         _safeMint(msg.sender, supply+1);
     }
+
 
     /**************************************************************************
      * UTIL FUNCTIONS
@@ -123,15 +124,8 @@ contract SafeZen is ERC721Enumerable, Ownable, Pausable {
         Policy memory currentPolicy = policies[_tokenId];
         
         // Formate date format for purchaseTime
-        (uint256 startYear, uint256 startMonth, uint256 startDay) = DateTime.timestampToDate(currentPolicy.purchaseTime);
+        (uint256 purchaseYear, uint256 purchaseMonth, uint256 purchaseDay) = DateTime.timestampToDate(currentPolicy.purchaseTime);
         
-        // Calculating amountPaid for policy
-        // uint256 totalAmtPaid;
-        // if (currentPolicy.isActive) {
-        //     totalAmtPaid = currentPolicy.amountPaid + (block.timestamp - currentPolicy.activatedTime) * uint96(currentPolicy.minFlowRate);
-        // } else {
-        //     totalAmtPaid = currentPolicy.amountPaid;
-        // }
 
         // ========== BUILDING POLICY ON-CHAIN SVG IMAG ========== /
         bytes memory p1 = abi.encodePacked(
@@ -146,8 +140,8 @@ contract SafeZen is ERC721Enumerable, Ownable, Pausable {
             '<text dominant-baseline="middle" text-anchor="middle" font-family="Noto Sans JP" font-size="20" y="250" x="50%" fill="#000000">','Coverage: ',Strings.toString(currentPolicy.coverageAmount),'</text>'
         );
         bytes memory p3 = abi.encodePacked( 
-            '<text dominant-baseline="middle" text-anchor="middle" font-family="Noto Sans JP" font-size="20" y="300" x="50%" fill="#000000">','Price: ',Strings.toString(uint96(currentPolicy.minFlowRate)),'</text>',
-            '<text dominant-baseline="middle" text-anchor="middle" font-family="Noto Sans JP" font-size="20" y="350" x="50%" fill="#000000">','Purchase Date: ',Strings.toString(startDay),'/',Strings.toString(startMonth),'/',Strings.toString(startYear),'</text>'
+            '<text dominant-baseline="middle" text-anchor="middle" font-family="Noto Sans JP" font-size="20" y="300" x="50%" fill="#000000">','Price: ',Strings.toString(currentPolicy.minFlowRate),'</text>',
+            '<text dominant-baseline="middle" text-anchor="middle" font-family="Noto Sans JP" font-size="20" y="350" x="50%" fill="#000000">','Purchase Date: ',Strings.toString(purchaseDay),'/',Strings.toString(purchaseMonth),'/',Strings.toString(purchaseYear),'</text>'
         );
         bytes memory p4 = abi.encodePacked(
             // '<text dominant-baseline="middle" text-anchor="middle" font-family="Noto Sans JP" font-size="20" y="400" x="50%" fill="#000000">','Duration: ',Strings.toString(activatedDuration),'</text>',
@@ -191,7 +185,7 @@ contract SafeZen is ERC721Enumerable, Ownable, Pausable {
             getHolder(_policyId), // sender of the flow
             address(this) // receiver of the flow
         );
-        return flowrate >= policies[_policyId].minFlowRate; // is flowrate more than the minimum required?
+        return uint96(flowrate) >= policies[_policyId].minFlowRate; // is flowrate more than the minimum required?
     }
 
     // getPolicies: do this off-chain with moralis

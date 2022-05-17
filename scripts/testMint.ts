@@ -14,7 +14,7 @@ async function main() {
   ).wait();
   console.log("🚀 | main | tx", tx);
 
-  console.log(await safezenContract.tokenURI(1));
+  console.log(await safezenContract.buildPolicy(1));
 }
 
 
@@ -24,3 +24,4 @@ main()
     console.error(error);
     process.exit(1);
   });
+
