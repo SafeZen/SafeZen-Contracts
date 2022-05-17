@@ -3,6 +3,7 @@ pragma solidity ^0.8.0;
 
 import {ISuperfluid, ISuperToken, ISuperApp} from "@superfluid-finance/ethereum-contracts/contracts/interfaces/superfluid/ISuperfluid.sol";
 import {IConstantFlowAgreementV1} from "@superfluid-finance/ethereum-contracts/contracts/interfaces/agreements/IConstantFlowAgreementV1.sol";
+
 import "hardhat/console.sol";
 import "@openzeppelin/contracts/token/ERC721/extensions/ERC721Enumerable.sol";
 import "@openzeppelin/contracts/security/Pausable.sol";
@@ -16,6 +17,13 @@ import "./GovContract.sol";
 contract SafeZen is ERC721Enumerable, Ownable, Pausable {
     using Strings for uint256;
 
+
+    // MINTING
+    // EXTRACTING METADATA 
+    // SUPERFLUID -> FIGURE OUT TESTNET, FIGURE OUT SUPERTOKEN, 1. MINT, 2. START STREAM 3. CHECK ISACTIVE() 
+    // GOVERNANCE -> BEING ABLE TO CLAIM
+    // STAKING -> USER WILL BE ABLE TO CLAIM X AMOUNT OF TOKEN (OUR OWN TOKEN) FROM STAKING CONTRACT
+
     // SUPERFLUID PARAMETERS
     ISuperfluid private _host; // host
     IConstantFlowAgreementV1 private _cfa; // the stored constant flow agreement class address
@@ -28,20 +36,19 @@ contract SafeZen is ERC721Enumerable, Ownable, Pausable {
 
     struct Policy {
         address policyHolder;
-        uint256 policyID; 
+        uint256 policyID; // TokenID = PolicyID
         string policyType; // VEHICLE-CAR, VEHICLE-VAN
         uint256 coverageAmount; 
         string merchant;
-        int96 flowRate;
+        int96 minFlowRate;
         uint256 purchaseTime;
-        uint256 activatedTime;
         bool isActive;
         uint256 amountPaid;
-        uint256 baseAmount; // Amount excluding the flowrate during activation
+        uint256 baseAmount; // Amount excluding the minFlowRate during activation
         string textHue;
         string bgHue;
     }
-
+ 
     constructor(
         string memory _name,
         string memory _symbol,
@@ -63,40 +70,7 @@ contract SafeZen is ERC721Enumerable, Ownable, Pausable {
         govContract = GovContract(govCA);
     }
 
-    /**************************************************************************
-     * INSURANCE POLICY FUNCTIONS
-     *************************************************************************/
-    function activatePolicy(uint256 _policyId) public {
-        Policy storage currentPolicy = policies[_policyId];
-        require(currentPolicy.policyHolder == msg.sender, "NOT POLICY HOLDER");
-        require(currentPolicy.purchaseTime <= block.timestamp, "POLICY NOT ELIGIBLE FOR ACTIVATION");
-        require(currentPolicy.isActive == false, "POLICY IS ALREADY ACTIVE");
-
-        // Update policy's activatedtime and create new Superfluid flow from User to SmartContract 
-        currentPolicy.activatedTime = block.timestamp;
-        currentPolicy.isActive = true;
-        _createFlow(address(this), currentPolicy.flowRate);
-    }
-
-    //TODO: figure out how flowrate works and calculation with default timestamp 
-    function deactivatePolicy(uint256 _policyId) public {
-        Policy storage currentPolicy = policies[_policyId];
-        require(currentPolicy.policyHolder == msg.sender, "NOT POLICY HOLDER");
-        require(currentPolicy.isActive == true, "POLICY IS NOT ACTIVATED");
-
-        currentPolicy.isActive = false;
-        currentPolicy.amountPaid += (block.timestamp - currentPolicy.activatedTime) * uint96(currentPolicy.flowRate);
-
-        _deleteFlow(msg.sender, address(this));
-    }
-
-    function passTokensToYield() public {
-        // check if he owns the policy, 
-        // check how much he has paid to the policy (how to get netbalance of stream from SuperFluid)
-        // transfer this amount to Lending contract (amount, msg.sender, policyId) 
-    }
-
-    function mint(string memory _policyType, uint256 _coverageAmount, string memory _merchant, int96 _flowRate, uint256 _purchaseTime, uint256 _baseAmount) public payable {
+    function mint(string memory _policyType, uint256 _coverageAmount, string memory _merchant, int96 _minFlowRate, uint256 _purchaseTime, uint256 _baseAmount) public {
         uint256 supply = totalSupply();
 
         Policy memory newPolicy = Policy(
@@ -105,9 +79,8 @@ contract SafeZen is ERC721Enumerable, Ownable, Pausable {
             _policyType,
             _coverageAmount,
             _merchant,
-            _flowRate,
+            _minFlowRate,
             _purchaseTime,
-            0, // Activated time
             false, // If policy is Active
             0, // Amount Paid
             _baseAmount,
@@ -144,27 +117,21 @@ contract SafeZen is ERC721Enumerable, Ownable, Pausable {
         else return bytes1(uint8(b) + 0x57);
     }
 
-    // buildImage
+    // Build the on-chain SVG for the policy
     function buildPolicy(uint256 _tokenId) public view returns(string memory) {
         // Retrieve policy 
         Policy memory currentPolicy = policies[_tokenId];
         
         // Formate date format for purchaseTime
         (uint256 startYear, uint256 startMonth, uint256 startDay) = DateTime.timestampToDate(currentPolicy.purchaseTime);
-       
-        // Calculating activeDuration of the policy
-        uint256 activatedDuration = 0;
-        if (currentPolicy.activatedTime != 0) { 
-            activatedDuration = block.timestamp - currentPolicy.activatedTime;
-        }
         
         // Calculating amountPaid for policy
-        uint256 totalAmtPaid;
-        if (currentPolicy.isActive) {
-            totalAmtPaid = currentPolicy.amountPaid + (block.timestamp - currentPolicy.activatedTime) * uint96(currentPolicy.flowRate);
-        } else {
-            totalAmtPaid = currentPolicy.amountPaid;
-        }
+        // uint256 totalAmtPaid;
+        // if (currentPolicy.isActive) {
+        //     totalAmtPaid = currentPolicy.amountPaid + (block.timestamp - currentPolicy.activatedTime) * uint96(currentPolicy.minFlowRate);
+        // } else {
+        //     totalAmtPaid = currentPolicy.amountPaid;
+        // }
 
         // ========== BUILDING POLICY ON-CHAIN SVG IMAG ========== /
         bytes memory p1 = abi.encodePacked(
@@ -179,20 +146,20 @@ contract SafeZen is ERC721Enumerable, Ownable, Pausable {
             '<text dominant-baseline="middle" text-anchor="middle" font-family="Noto Sans JP" font-size="20" y="250" x="50%" fill="#000000">','Coverage: ',Strings.toString(currentPolicy.coverageAmount),'</text>'
         );
         bytes memory p3 = abi.encodePacked( 
-            '<text dominant-baseline="middle" text-anchor="middle" font-family="Noto Sans JP" font-size="20" y="300" x="50%" fill="#000000">','Price: ',Strings.toString(uint96(currentPolicy.flowRate)),'</text>',
+            '<text dominant-baseline="middle" text-anchor="middle" font-family="Noto Sans JP" font-size="20" y="300" x="50%" fill="#000000">','Price: ',Strings.toString(uint96(currentPolicy.minFlowRate)),'</text>',
             '<text dominant-baseline="middle" text-anchor="middle" font-family="Noto Sans JP" font-size="20" y="350" x="50%" fill="#000000">','Purchase Date: ',Strings.toString(startDay),'/',Strings.toString(startMonth),'/',Strings.toString(startYear),'</text>'
         );
         bytes memory p4 = abi.encodePacked(
-            '<text dominant-baseline="middle" text-anchor="middle" font-family="Noto Sans JP" font-size="20" y="400" x="50%" fill="#000000">','Duration: ',Strings.toString(activatedDuration),'</text>',
-            '<text dominant-baseline="middle" text-anchor="middle" font-family="Noto Sans JP" font-size="20" y="400" x="50%" fill="#000000">','isActive: ',currentPolicy.isActive,'</text>',
-            '<text dominant-baseline="middle" text-anchor="middle" font-family="Noto Sans JP" font-size="20" y="400" x="50%" fill="#000000">','Amount Paid: ',totalAmtPaid.toString(),'</text>',
+            // '<text dominant-baseline="middle" text-anchor="middle" font-family="Noto Sans JP" font-size="20" y="400" x="50%" fill="#000000">','Duration: ',Strings.toString(activatedDuration),'</text>',
+            '<text dominant-baseline="middle" text-anchor="middle" font-family="Noto Sans JP" font-size="20" y="400" x="50%" fill="#000000">','isActive: ',isActive(_tokenId),'</text>',
+            // '<text dominant-baseline="middle" text-anchor="middle" font-family="Noto Sans JP" font-size="20" y="400" x="50%" fill="#000000">','Amount Paid: ',totalAmtPaid.toString(),'</text>',
             '</svg>'
         );
 
         return Base64.encode(bytes.concat(p1,p2,p3,p4));
     }
 
-    // build metadata
+    // build Metadata to return for TokenURI, returns the attributes of the policy as well
     function buildMetadata(uint256 _tokenId) public view returns(string memory) {
         Policy memory currentPolicy = policies[_tokenId];
 
@@ -218,7 +185,18 @@ contract SafeZen is ERC721Enumerable, Ownable, Pausable {
         return buildMetadata(_tokenId);
     }
 
+    function isActive(uint256 _policyId) public view returns(bool) {
+        (, int96 flowrate, , ) = _cfa.getFlow(  // gets details on whether the policy owner is streaming or not
+            _acceptedToken, // superToken used
+            getHolder(_policyId), // sender of the flow
+            address(this) // receiver of the flow
+        );
+        return flowrate >= policies[_policyId].minFlowRate; // is flowrate more than the minimum required?
+    }
+
     // getPolicies: do this off-chain with moralis
+
+    // Get the current holder of a specific policy
     function getHolder(uint256 _policyID) public view returns (address) {
         Policy memory currentPolicy = policies[_policyID];
         address holder = currentPolicy.policyHolder;
@@ -237,10 +215,6 @@ contract SafeZen is ERC721Enumerable, Ownable, Pausable {
         currentPolicy.policyHolder = to; 
         // Reset necessary parameters for the policy
         currentPolicy.isActive = false;
-        currentPolicy.activatedTime = 0;
-        currentPolicy.amountPaid = 0; 
-        // delete flow from current holder
-        _deleteFlow(from, address(this));
     }
     
     // ================= OWNER FUNCTIONS ================= //
@@ -251,39 +225,6 @@ contract SafeZen is ERC721Enumerable, Ownable, Pausable {
     function unpause() public onlyOwner {
         _unpause();
     }
-
-    /**************************************************************************
-     * SUPERFLUID FUNCTIONS
-     *************************************************************************/
-    function _createFlow(address to, int96 flowRate) internal {
-        if (to == address(this) || to == address(0)) return;
-        _host.callAgreement(
-            _cfa,
-            abi.encodeWithSelector(
-                _cfa.createFlow.selector,
-                _acceptedToken,
-                to,
-                flowRate,
-                new bytes(0) // placeholder
-            ),
-            "0x"
-        );
-    }
-
-    function _deleteFlow(address from, address to) internal {
-        _host.callAgreement(
-            _cfa,
-            abi.encodeWithSelector(
-                _cfa.deleteFlow.selector,
-                _acceptedToken,
-                from,
-                to,
-                new bytes(0) // placeholder
-            ),
-            "0x"
-        );
-    }
-
 }
 
 
