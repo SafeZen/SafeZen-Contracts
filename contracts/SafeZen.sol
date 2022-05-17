@@ -1,25 +1,8 @@
 //SPDX-License-Identifier: MIT
 pragma solidity ^0.8.0;
-import {
-    ISuperfluid,
-    ISuperToken,
-    ISuperAgreement,
-    SuperAppDefinitions
-} from "@superfluid-finance/ethereum-contracts/contracts/interfaces/superfluid/ISuperfluid.sol";
 
-import {
-    IConstantFlowAgreementV1
-} from "@superfluid-finance/ethereum-contracts/contracts/interfaces/agreements/IConstantFlowAgreementV1.sol";
-
-import {
-    CFAv1Library
-} from "@superfluid-finance/ethereum-contracts/contracts/apps/CFAv1Library.sol";
-
-import {
-    SuperAppBase
-} from "@superfluid-finance/ethereum-contracts/contracts/apps/SuperAppBase.sol";
-import "@openzeppelin/contracts/utils/structs/EnumerableSet.sol";
-
+import {ISuperfluid, ISuperToken, ISuperApp} from "@superfluid-finance/ethereum-contracts/contracts/interfaces/superfluid/ISuperfluid.sol";
+import {IConstantFlowAgreementV1} from "@superfluid-finance/ethereum-contracts/contracts/interfaces/agreements/IConstantFlowAgreementV1.sol";
 import "hardhat/console.sol";
 import "@openzeppelin/contracts/token/ERC721/extensions/ERC721Enumerable.sol";
 import "@openzeppelin/contracts/security/Pausable.sol";
@@ -28,22 +11,20 @@ import "@openzeppelin/contracts/utils/Strings.sol";
 import "./Base64.sol";
 import "./DateTime.sol";
 import "./StakingContract.sol";
+import "./GovContract.sol";
 
-contract SafeZen is ERC721Enumerable, Ownable, Pausable, SuperAppBase {
+contract SafeZen is ERC721Enumerable, Ownable, Pausable {
     using Strings for uint256;
 
     // SUPERFLUID PARAMETERS
     ISuperfluid private _host; // host
     IConstantFlowAgreementV1 private _cfa; // the stored constant flow agreement class address
-    ISuperToken private _acceptedToken; // accepted token
-
-    using CFAv1Library for CFAv1Library.InitData;
-    CFAv1Library.InitData public cfaV1; //initialize cfaV1 variable
+    ISuperToken public _acceptedToken; // accepted token
 
     StakingContract private stakingContract; 
+    GovContract private govContract;
 
     mapping (uint256 => Policy) public policies;
-    string private _baseURIextended;
 
     struct Policy {
         address policyHolder;
@@ -51,7 +32,7 @@ contract SafeZen is ERC721Enumerable, Ownable, Pausable, SuperAppBase {
         string policyType; // VEHICLE-CAR, VEHICLE-VAN
         uint256 coverageAmount; 
         string merchant;
-        uint256 flowRate;
+        int96 flowRate;
         uint256 purchaseTime;
         uint256 activatedTime;
         bool isActive;
@@ -67,40 +48,26 @@ contract SafeZen is ERC721Enumerable, Ownable, Pausable, SuperAppBase {
         ISuperfluid host,
         IConstantFlowAgreementV1 cfa,
         ISuperToken acceptedToken,
-        address stakingCA
+        address stakingCA,
+        address govCA
     ) ERC721(_name, _symbol) {
-        require(address(host) != address(0), "host is nil");
-        require(address(cfa) != address(0), "cfa is nil");
-        require(address(acceptedToken) != address(0), "superToken1 is nil");
-
         _host = host;
         _cfa = cfa;
         _acceptedToken = acceptedToken;
+
+        assert(address(_host) != address(0));
+        assert(address(_cfa) != address(0));
+        assert(address(_acceptedToken) != address(0));
+
         stakingContract = StakingContract(stakingCA);
-
-        uint256 configWord =
-            SuperAppDefinitions.APP_LEVEL_FINAL |
-            SuperAppDefinitions.BEFORE_AGREEMENT_CREATED_NOOP |
-            SuperAppDefinitions.BEFORE_AGREEMENT_UPDATED_NOOP |
-            SuperAppDefinitions.BEFORE_AGREEMENT_TERMINATED_NOOP;
-
-        host.registerApp(configWord); // Enable your Super App to be registered within Superfluid host contract's Super App manifest
-        cfaV1 = CFAv1Library.InitData(
-        host,
-        //here, we are deriving the address of the CFA using the host contract
-        IConstantFlowAgreementV1(
-            address(host.getAgreementClass(
-                    keccak256("org.superfluid-finance.agreements.ConstantFlowAgreement.v1")
-                ))
-            )
-        );
+        govContract = GovContract(govCA);
     }
 
     /**************************************************************************
      * INSURANCE POLICY FUNCTIONS
      *************************************************************************/
     function activatePolicy(uint256 _policyId) public {
-        address storage currentPolicy = policies[_policyId];
+        Policy storage currentPolicy = policies[_policyId];
         require(currentPolicy.policyHolder == msg.sender, "NOT POLICY HOLDER");
         require(currentPolicy.purchaseTime <= block.timestamp, "POLICY NOT ELIGIBLE FOR ACTIVATION");
         require(currentPolicy.isActive == false, "POLICY IS ALREADY ACTIVE");
@@ -108,19 +75,19 @@ contract SafeZen is ERC721Enumerable, Ownable, Pausable, SuperAppBase {
         // Update policy's activatedtime and create new Superfluid flow from User to SmartContract 
         currentPolicy.activatedTime = block.timestamp;
         currentPolicy.isActive = true;
-        _cfa.createFlow(_acceptedToken, address(this), currentPolicy.flowRate);
+        _createFlow(address(this), currentPolicy.flowRate);
     }
 
     //TODO: figure out how flowrate works and calculation with default timestamp 
     function deactivatePolicy(uint256 _policyId) public {
-        address storage currentPolicy = policies[_policyId];
+        Policy storage currentPolicy = policies[_policyId];
         require(currentPolicy.policyHolder == msg.sender, "NOT POLICY HOLDER");
         require(currentPolicy.isActive == true, "POLICY IS NOT ACTIVATED");
 
         currentPolicy.isActive = false;
-        currentPolicy.amountPaid += (block.timestamp - currentPolicy.activatedTime) * currentPolicy.flowRate;
+        currentPolicy.amountPaid += (block.timestamp - currentPolicy.activatedTime) * uint96(currentPolicy.flowRate);
 
-        _cfa.deleteFlow(_acceptedToken, msg.sender, address(this));
+        _deleteFlow(msg.sender, address(this));
     }
 
     function passTokensToYield() public {
@@ -192,9 +159,9 @@ contract SafeZen is ERC721Enumerable, Ownable, Pausable, SuperAppBase {
         }
         
         // Calculating amountPaid for policy
-        uint256 memory totalAmtPaid;
+        uint256 totalAmtPaid;
         if (currentPolicy.isActive) {
-            totalAmtPaid = currentPolicy.amountPaid + (block.timestamp - currentPolicy.activatedTime) * currentPolicy.flowRate;
+            totalAmtPaid = currentPolicy.amountPaid + (block.timestamp - currentPolicy.activatedTime) * uint96(currentPolicy.flowRate);
         } else {
             totalAmtPaid = currentPolicy.amountPaid;
         }
@@ -212,7 +179,7 @@ contract SafeZen is ERC721Enumerable, Ownable, Pausable, SuperAppBase {
             '<text dominant-baseline="middle" text-anchor="middle" font-family="Noto Sans JP" font-size="20" y="250" x="50%" fill="#000000">','Coverage: ',Strings.toString(currentPolicy.coverageAmount),'</text>'
         );
         bytes memory p3 = abi.encodePacked( 
-            '<text dominant-baseline="middle" text-anchor="middle" font-family="Noto Sans JP" font-size="20" y="300" x="50%" fill="#000000">','Price: ',Strings.toString(currentPolicy.flowRate),'</text>',
+            '<text dominant-baseline="middle" text-anchor="middle" font-family="Noto Sans JP" font-size="20" y="300" x="50%" fill="#000000">','Price: ',Strings.toString(uint96(currentPolicy.flowRate)),'</text>',
             '<text dominant-baseline="middle" text-anchor="middle" font-family="Noto Sans JP" font-size="20" y="350" x="50%" fill="#000000">','Purchase Date: ',Strings.toString(startDay),'/',Strings.toString(startMonth),'/',Strings.toString(startYear),'</text>'
         );
         bytes memory p4 = abi.encodePacked(
@@ -273,6 +240,7 @@ contract SafeZen is ERC721Enumerable, Ownable, Pausable, SuperAppBase {
         currentPolicy.isActive = false;
         currentPolicy.activatedTime = 0;
         currentPolicy.amountPaid = 0; 
+        _deleteFlow(msg.sender, address(this));
     }
     
     // ================= OWNER FUNCTIONS ================= //
@@ -285,127 +253,37 @@ contract SafeZen is ERC721Enumerable, Ownable, Pausable, SuperAppBase {
     }
 
     /**************************************************************************
-     * SuperApp callbacks
+     * SUPERFLUID FUNCTIONS
      *************************************************************************/
-    // Run before the call to the agreement contract contract will be run.
-    // If there is logic inside this function, it will run before teh stream is created by the user
-    function beforeAgreementCreated(
-        ISuperToken superToken, // the protocol will pass the SUperToken that's being used in the call to the constant flow agreement contract here
-        address agreementClass, // constant flow agreement contract
-        bytes32 /*agreementId*/,
-        bytes calldata /*agreementData*/,
-        bytes calldata ctx // contains data about the call ot the constant flow agreement contract
-    )
-        external view override
-        onlyHost
-        onlyExpected(superToken, agreementClass)
-        returns (bytes memory cbdata)
-    {
-        cbdata = _beforePlay(ctx); // TO EDIT
+    function _createFlow(address to, int96 flowRate) internal {
+        if (to == address(this) || to == address(0)) return;
+        _host.callAgreement(
+            _cfa,
+            abi.encodeWithSelector(
+                _cfa.createFlow.selector,
+                _acceptedToken,
+                to,
+                flowRate,
+                new bytes(0) // placeholder
+            ),
+            "0x"
+        );
     }
 
-    function afterAgreementCreated(
-        ISuperToken /* superToken */,
-        address agreementClass,
-        bytes32 agreementId,
-        bytes calldata /*agreementData*/,
-        bytes calldata cbdata,
-        bytes calldata ctx
-    )
-        external override
-        onlyHost
-        returns (bytes memory newCtx)
-    {
-        return _play(ctx, agreementClass, agreementId, cbdata); // TO EDIT
+    function _deleteFlow(address from, address to) internal {
+        _host.callAgreement(
+            _cfa,
+            abi.encodeWithSelector(
+                _cfa.deleteFlow.selector,
+                _acceptedToken,
+                from,
+                to,
+                new bytes(0) // placeholder
+            ),
+            "0x"
+        );
     }
 
-    function beforeAgreementUpdated(
-        ISuperToken superToken,
-        address agreementClass,
-        bytes32 /*agreementId*/,
-        bytes calldata /*agreementData*/,
-        bytes calldata ctx
-    )
-        external view override
-        onlyHost
-        onlyExpected(superToken, agreementClass)
-        returns (bytes memory cbdata)
-    {
-        cbdata = _beforePlay(ctx); // TO EDIT
-    }
-
-    function afterAgreementUpdated(
-        ISuperToken /* superToken */,
-        address agreementClass,
-        bytes32 agreementId,
-        bytes calldata /*agreementData*/,
-        bytes calldata cbdata,
-        bytes calldata ctx
-    )
-        external override
-        onlyHost
-        returns (bytes memory newCtx)
-    {
-        return _play(ctx, agreementClass, agreementId, cbdata); // TO EDIT
-    }
-
-    function beforeAgreementTerminated(
-        ISuperToken superToken,
-        address agreementClass,
-        bytes32 /*agreementId*/,
-        bytes calldata /*agreementData*/,
-        bytes calldata /*ctx*/
-    )
-        external view override
-        onlyHost
-        returns (bytes memory cbdata)
-    {
-        // According to the app basic law, we should never revert in a termination callback
-        if (!_isSameToken(superToken) || !_isCFAv1(agreementClass)) return abi.encode(true);
-        return abi.encode(false);
-    }
-
-    ///
-    function afterAgreementTerminated(
-        ISuperToken /* superToken */,
-        address /* agreementClass */,
-        bytes32 /* agreementId */,
-        bytes calldata agreementData,
-        bytes calldata cbdata,
-        bytes calldata ctx
-    )
-        external override
-        onlyHost
-        returns (bytes memory newCtx)
-    {
-        // According to the app basic law, we should never revert in a termination callback
-        (bool shouldIgnore) = abi.decode(cbdata, (bool));
-        if (shouldIgnore) return ctx;
-        // note that msgSender can be either flow sender, receiver or liquidator
-        // one must decode agreementData to determine who is the actual player
-        (address player, ) = abi.decode(agreementData, (address, address));
-        return _quit(player, ctx); // TO EDIT
-    }
-
-    function _isSameToken(ISuperToken superToken) private view returns (bool) {
-        return address(superToken) == address(_acceptedToken);
-    }
-
-    function _isCFAv1(address agreementClass) private view returns (bool) {
-        return ISuperAgreement(agreementClass).agreementType()
-            == keccak256("org.superfluid-finance.agreements.ConstantFlowAgreement.v1");
-    }
-
-    modifier onlyHost() {
-        require(msg.sender == address(_host), "LotterySuperApp: support only one host");
-        _;
-    }
-
-    modifier onlyExpected(ISuperToken superToken, address agreementClass) {
-        require(_isSameToken(superToken), "LotterySuperApp: not accepted token");
-        require(_isCFAv1(agreementClass), "LotterySuperApp: only CFAv1 supported");
-        _;
-    }
 }
 
 
