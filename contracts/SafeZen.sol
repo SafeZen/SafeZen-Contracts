@@ -27,6 +27,7 @@ import "@openzeppelin/contracts/access/Ownable.sol";
 import "@openzeppelin/contracts/utils/Strings.sol";
 import "./Base64.sol";
 import "./DateTime.sol";
+import "./StakingContract.sol";
 
 contract SafeZen is ERC721Enumerable, Ownable, Pausable, SuperAppBase {
     using Strings for uint256;
@@ -39,20 +40,23 @@ contract SafeZen is ERC721Enumerable, Ownable, Pausable, SuperAppBase {
     using CFAv1Library for CFAv1Library.InitData;
     CFAv1Library.InitData public cfaV1; //initialize cfaV1 variable
 
+    StakingContract private stakingContract; 
+
     mapping (uint256 => Policy) public policies;
     string private _baseURIextended;
 
     struct Policy {
         address policyHolder;
-        uint256 policyID;
-        string policyType;
-        uint256 coverageAmount;
+        uint256 policyID; 
+        string policyType; // VEHICLE-CAR, VEHICLE-VAN
+        uint256 coverageAmount; 
         string merchant;
         uint256 flowRate;
         uint256 purchaseTime;
         uint256 activatedTime;
-        uint256 amountPaid;
         bool isActive;
+        uint256 amountPaid;
+        uint256 baseAmount; // Amount excluding the flowrate during activation
         string textHue;
         string bgHue;
     }
@@ -62,7 +66,8 @@ contract SafeZen is ERC721Enumerable, Ownable, Pausable, SuperAppBase {
         string memory _symbol,
         ISuperfluid host,
         IConstantFlowAgreementV1 cfa,
-        ISuperToken acceptedToken
+        ISuperToken acceptedToken,
+        address stakingCA
     ) ERC721(_name, _symbol) {
         require(address(host) != address(0), "host is nil");
         require(address(cfa) != address(0), "cfa is nil");
@@ -71,6 +76,7 @@ contract SafeZen is ERC721Enumerable, Ownable, Pausable, SuperAppBase {
         _host = host;
         _cfa = cfa;
         _acceptedToken = acceptedToken;
+        stakingContract = StakingContract(stakingCA);
 
         uint256 configWord =
             SuperAppDefinitions.APP_LEVEL_FINAL |
@@ -117,8 +123,13 @@ contract SafeZen is ERC721Enumerable, Ownable, Pausable, SuperAppBase {
         _cfa.deleteFlow(_acceptedToken, msg.sender, address(this));
     }
 
+    function passTokensToYield() public {
+        // check if he owns the policy, 
+        // check how much he has paid to the policy (how to get netbalance of stream from SuperFluid)
+        // transfer this amount to Lending contract (amount, msg.sender, policyId) 
+    }
 
-    function mint(string memory _policyType, uint256 _coverageAmount, string memory _merchant, int96 _flowRate, uint256 _purchaseTime) public payable {
+    function mint(string memory _policyType, uint256 _coverageAmount, string memory _merchant, int96 _flowRate, uint256 _purchaseTime, uint256 _baseAmount) public payable {
         uint256 supply = totalSupply();
 
         Policy memory newPolicy = Policy(
@@ -129,9 +140,10 @@ contract SafeZen is ERC721Enumerable, Ownable, Pausable, SuperAppBase {
             _merchant,
             _flowRate,
             _purchaseTime,
-            0, // Active Duration
+            0, // Activated time
             false, // If policy is Active
-            0, // amountPaid
+            0, // Amount Paid
+            _baseAmount,
             randomNum(361, block.difficulty, supply).toString(),
             randomNum(361, block.timestamp, supply).toString()
         );
@@ -217,6 +229,7 @@ contract SafeZen is ERC721Enumerable, Ownable, Pausable, SuperAppBase {
     function buildMetadata(uint256 _tokenId) public view returns(string memory) {
         Policy memory currentPolicy = policies[_tokenId];
 
+        //TODO: return all the attributes in metadata
         return string(abi.encodePacked(
         'data:application/json;base64,',
         Base64.encode(bytes(abi.encodePacked(
@@ -227,7 +240,9 @@ contract SafeZen is ERC721Enumerable, Ownable, Pausable, SuperAppBase {
             '", "image": "',
             'data:image/svg+xml;base64,',
             buildPolicy(_tokenId),
-            '"}'
+            '", "attributes": [{"trait_type":"PolicyHolder"',
+            ',"value":"',
+            currentPolicy.policyHolder, '"}]}'
         )))));
     }
 
@@ -392,3 +407,7 @@ contract SafeZen is ERC721Enumerable, Ownable, Pausable, SuperAppBase {
         _;
     }
 }
+
+
+
+
