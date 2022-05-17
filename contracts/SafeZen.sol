@@ -17,7 +17,6 @@ import "./GovContract.sol";
 contract SafeZen is ERC721Enumerable, Ownable, Pausable {
     using Strings for uint256;
 
-
     // MINTING
     // EXTRACTING METADATA 
     // SUPERFLUID -> FIGURE OUT TESTNET, FIGURE OUT SUPERTOKEN, 1. MINT, 2. START STREAM 3. CHECK ISACTIVE() 
@@ -40,7 +39,7 @@ contract SafeZen is ERC721Enumerable, Ownable, Pausable {
         string policyType; // VEHICLE-CAR, VEHICLE-VAN
         uint256 coverageAmount; 
         string merchant;
-        uint256 minFlowRate;
+        int96 minFlowRate;
         uint256 purchaseTime;
         bool isActive;
         uint256 amountPaid;
@@ -70,7 +69,7 @@ contract SafeZen is ERC721Enumerable, Ownable, Pausable {
         govContract = GovContract(govCA);
     }
 
-    function mint(string memory _policyType, uint256 _coverageAmount, string memory _merchant, uint256 _minFlowRate, uint256 _purchaseTime, uint256 _baseAmount) public  payable{
+    function mint(string memory _policyType, uint256 _coverageAmount, string memory _merchant, int96 _minFlowRate, uint256 _purchaseTime, uint256 _baseAmount) public  payable{
         uint256 supply = totalSupply();
 
         Policy memory newPolicy = Policy(
@@ -125,6 +124,10 @@ contract SafeZen is ERC721Enumerable, Ownable, Pausable {
         
         // Formate date format for purchaseTime
         (uint256 purchaseYear, uint256 purchaseMonth, uint256 purchaseDay) = DateTime.timestampToDate(currentPolicy.purchaseTime);
+
+        //TODO: fix the isActive function and use that in the on-chain svg
+        // convert bool to string for isActive
+        // string memory isPolicyActive = isActive(_tokenId) ? "True":"False";
         
 
         // ========== BUILDING POLICY ON-CHAIN SVG IMAG ========== /
@@ -140,13 +143,11 @@ contract SafeZen is ERC721Enumerable, Ownable, Pausable {
             '<text dominant-baseline="middle" text-anchor="middle" font-family="Noto Sans JP" font-size="20" y="250" x="50%" fill="#000000">','Coverage: ',Strings.toString(currentPolicy.coverageAmount),'</text>'
         );
         bytes memory p3 = abi.encodePacked( 
-            '<text dominant-baseline="middle" text-anchor="middle" font-family="Noto Sans JP" font-size="20" y="300" x="50%" fill="#000000">','Price: ',Strings.toString(currentPolicy.minFlowRate),'</text>',
+            '<text dominant-baseline="middle" text-anchor="middle" font-family="Noto Sans JP" font-size="20" y="300" x="50%" fill="#000000">','Price: ',Strings.toString(uint96(currentPolicy.minFlowRate)),'</text>',
             '<text dominant-baseline="middle" text-anchor="middle" font-family="Noto Sans JP" font-size="20" y="350" x="50%" fill="#000000">','Purchase Date: ',Strings.toString(purchaseDay),'/',Strings.toString(purchaseMonth),'/',Strings.toString(purchaseYear),'</text>'
         );
         bytes memory p4 = abi.encodePacked(
-            // '<text dominant-baseline="middle" text-anchor="middle" font-family="Noto Sans JP" font-size="20" y="400" x="50%" fill="#000000">','Duration: ',Strings.toString(activatedDuration),'</text>',
-            '<text dominant-baseline="middle" text-anchor="middle" font-family="Noto Sans JP" font-size="20" y="400" x="50%" fill="#000000">','isActive: ',isActive(_tokenId),'</text>',
-            // '<text dominant-baseline="middle" text-anchor="middle" font-family="Noto Sans JP" font-size="20" y="400" x="50%" fill="#000000">','Amount Paid: ',totalAmtPaid.toString(),'</text>',
+            '<text dominant-baseline="middle" text-anchor="middle" font-family="Noto Sans JP" font-size="20" y="400" x="50%" fill="#000000">','isActive: ','True','</text>',
             '</svg>'
         );
 
@@ -156,22 +157,62 @@ contract SafeZen is ERC721Enumerable, Ownable, Pausable {
     // build Metadata to return for TokenURI, returns the attributes of the policy as well
     function buildMetadata(uint256 _tokenId) public view returns(string memory) {
         Policy memory currentPolicy = policies[_tokenId];
-
-        //TODO: return all the attributes in metadata
-        return string(abi.encodePacked(
-        'data:application/json;base64,',
-        Base64.encode(bytes(abi.encodePacked(
+        bytes memory m1 = abi.encodePacked(
             '{"name":"',
             currentPolicy.policyType,
             '", "description":"',
-            currentPolicy.merchant,
+            'Insurance policy purchased from SafeZen, Pay as you Go!',
             '", "image": "',
             'data:image/svg+xml;base64,',
             buildPolicy(_tokenId),
-            '", "attributes": [{"trait_type":"PolicyHolder"',
-            ',"value":"',
-            currentPolicy.policyHolder, '"}]}'
-        )))));
+            // adding policyHolder
+            '", "attributes": [{"trait_type":"PolicyHolder",',
+            '"value":"0x',
+            toAsciiString(currentPolicy.policyHolder), 
+            '"},',
+            // policyID
+            '{"trait_type":"PolicyID",',
+            '"value":"',
+            Strings.toString(currentPolicy.policyID),
+            '"},'
+        );
+
+        bytes memory m2 = abi.encodePacked(// coverageAmount
+            '{"trait_type":"CoverageAmount",',
+            '"value":"',
+            Strings.toString(currentPolicy.coverageAmount),
+            '"},',
+            // minFlowRate
+            '{"trait_type":"MinFlowRate",',
+            '"value":"',
+            Strings.toString(uint96(currentPolicy.minFlowRate)),
+            '"},',
+            // purchaseTime
+            '{"trait_type":"PurchaseTime",',
+            '"value":"',
+            Strings.toString(currentPolicy.purchaseTime),
+            '"},'
+        );
+
+        bytes memory m3 = abi.encodePacked(// policyID
+            '{"trait_type":"Active",',
+            '"value":"',
+            'False', // TODO: update with the isActive() function after debug
+            '"},',
+             // policyID
+            '{"trait_type":"AmountPaid",',
+            '"value":"',
+            Strings.toString(currentPolicy.amountPaid), 
+            '"},',
+            // policyID
+            '{"trait_type":"BaseAmount",',
+            '"value":"',
+            Strings.toString(currentPolicy.baseAmount), 
+            '"},',
+            ']}');
+        return string(abi.encodePacked(
+        'data:application/json;base64,',
+        Base64.encode(bytes.concat(m1,m2,m3))));
     }
 
     function tokenURI(uint256 _tokenId) public view virtual override returns (string memory) {
@@ -179,13 +220,14 @@ contract SafeZen is ERC721Enumerable, Ownable, Pausable {
         return buildMetadata(_tokenId);
     }
 
+    //TODO: getFlow is returning error with no error message, check from superFluid discord
     function isActive(uint256 _policyId) public view returns(bool) {
         (, int96 flowrate, , ) = _cfa.getFlow(  // gets details on whether the policy owner is streaming or not
             _acceptedToken, // superToken used
             getHolder(_policyId), // sender of the flow
             address(this) // receiver of the flow
         );
-        return uint96(flowrate) >= policies[_policyId].minFlowRate; // is flowrate more than the minimum required?
+        return flowrate >= policies[_policyId].minFlowRate; // is flowrate more than the minimum required?
     }
 
     // getPolicies: do this off-chain with moralis
