@@ -232,7 +232,6 @@ contract SafeZen is ERC721Enumerable, Ownable, Pausable {
     ) internal virtual override(ERC721Enumerable) {
         super._beforeTokenTransfer(from, to, tokenId);
         
-        // TODO: Deactivate Deactivate flow from old holder
         Policy storage currentPolicy = policies[tokenId];
         // Change policy holder wallet address
         currentPolicy.policyHolder = to; 
@@ -240,7 +239,8 @@ contract SafeZen is ERC721Enumerable, Ownable, Pausable {
         currentPolicy.isActive = false;
         currentPolicy.activatedTime = 0;
         currentPolicy.amountPaid = 0; 
-        _deleteFlow(msg.sender, address(this));
+        // delete flow from current holder
+        _deleteFlow(from, address(this));
     }
     
     // ================= OWNER FUNCTIONS ================= //
