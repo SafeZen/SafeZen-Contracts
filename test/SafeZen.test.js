@@ -115,9 +115,10 @@ describe("minting policy", async function () {
 		assert.equal(userBalance, 1, "User should have minted 1 policy");
 		assert.equal(isPolicyActive, false, "Policy should not be active")
 	});
+});
 
+describe("Activating a flow", async function () {
 	it("User starts a flow - reflected correctly in balance", async () => {
-		console.log(SafeZen.address)
 		const SafeZenInitialBalance = await daix.balanceOf({
 			account: SafeZen.address,
 			providerOrSigner: accounts[0]
@@ -143,7 +144,7 @@ describe("minting policy", async function () {
 			providerOrSigner: superSigner
 		})
 
-		console.log(`Go forward in time by ${TEST_TRAVEL_TIME}ms`);
+		console.log(`Go forward in time by ${TEST_TRAVEL_TIME} ms`);
 		await traveler.advanceTimeAndBlock(TEST_TRAVEL_TIME);
 
 		const SafeZenFinalBalance = await daix.balanceOf({
@@ -152,10 +153,82 @@ describe("minting policy", async function () {
 		})
 
 		assert.equal(SafeZenFlowRate, "70000000", "SafeZen is not receiving 100% of the flowRate")
+		assert.equal(ownerFlowRate, "-70000000", "OwnerFlowRate is not reflected correctly")
+		assert.equal(SafeZenFinalBalance-SafeZenInitialBalance,SafeZenFlowRate*TEST_TRAVEL_TIME, "Wrong balance from flowrate")
+	})
 
+	it("Policy should be started", async () => {
+		policyId = SafeZen.totalSupply();
+		isPolicyActive = await SafeZen.isActive(policyId)
+		assert.equal(isPolicyActive, true, "Policy should be activated with the flow")
+	})
+
+	it("Policy should not be active if no flow from owner", async () => {
+		const DeleteFlowOperation = sf.cfaV1.deleteFlow({
+			sender: accounts[0].address,
+			receiver: SafeZen.address,
+			superToken: daix.address,
+		})
+
+		const txn = await DeleteFlowOperation.exec(accounts[0]);
+
+		const SafeZenFlowRate = await sf.cfaV1.getNetFlow({
+			superToken: daix.address,
+			account: SafeZen.address,
+			providerOrSigner: superSigner
+		})
+		const ownerFlowRate = await sf.cfaV1.getNetFlow({
+			superToken: daix.address,
+			account: accounts[0].address,
+			providerOrSigner: superSigner
+		})
+
+		assert.equal(SafeZenFlowRate, "0", "App flow rate should be 0");
+		assert.equal(ownerFlowRate, "0", "Owner flow rate should be 0")
+
+		policyId = SafeZen.totalSupply();
+		isPolicyActive = await SafeZen.isActive(policyId)
+		assert.equal(isPolicyActive, false, "Policy should not be activated with no flow")
+	})
+
+	it("Policy should not be active if flow is insufficient", async () => {
+		const createFlowOperation = sf.cfaV1.createFlow({
+			receiver: SafeZen.address,
+			superToken: daix.address,
+			flowRate: "10000",
+		});
+
+		const txn = await createFlowOperation.exec(accounts[0]);
+		const receipt = await txn.wait();
+
+		const SafeZenFlowRate = await sf.cfaV1.getNetFlow({
+			superToken: daix.address,
+			account: SafeZen.address,
+			providerOrSigner: superSigner
+		})
+		const ownerFlowRate = await sf.cfaV1.getNetFlow({
+			superToken: daix.address,
+			account: accounts[0].address,
+			providerOrSigner: superSigner
+		})
+
+		console.log(`Go forward in time by ${TEST_TRAVEL_TIME} ms`);
+		await traveler.advanceTimeAndBlock(TEST_TRAVEL_TIME);
+
+		const SafeZenFinalBalance = await daix.balanceOf({
+			account: SafeZen.address,
+			providerOrSigner: superSigner
+		})
+		
+		assert.equal(SafeZenFlowRate, "10000", "App flow rate should be 0");
+		assert.equal(ownerFlowRate, "-10000", "Owner flow rate should be 0")
 		assert.equal(SafeZenFinalBalance-SafeZenInitialBalance,SafeZenFlowRate*TEST_TRAVEL_TIME, "Wrong balance from flowrate")
 
+		policyId = SafeZen.totalSupply();
+		isPolicyActive = await SafeZen.isActive(policyId)
+		assert.equal(isPolicyActive, false, "Policy should not be activated with insufficient flow")
 	})
 })
+	
 
 
