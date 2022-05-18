@@ -2,6 +2,8 @@ import { task } from "hardhat/config";
 
 require("@nomiclabs/hardhat-waffle");
 require("@nomiclabs/hardhat-etherscan");
+require("@nomiclabs/hardhat-truffle5");
+require('@nomiclabs/hardhat-ethers');
 require("hardhat-gas-reporter");
 require("hardhat-deploy");
 require("hardhat-typechain");
@@ -105,9 +107,7 @@ module.exports = {
 		],
 	},
 	namedAccounts: {
-		deployer: {
-			default: 0, // here this will by default take the first account as deployer
-		},
+		deployer: 0
 	},
 	etherscan: {
 		apiKey: process.env.ETHERSCAN_API_KEY,
