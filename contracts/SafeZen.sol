@@ -14,14 +14,12 @@ import "./DateTime.sol";
 import "./StakingContract.sol";
 import "./GovContract.sol";
 
+/// @title SafeZen NFT contract with Superfluid
+/// @author Sean (@theLewBei)
+/// @notice The project allows users to be able to mint a specific policy that they need and stream only when they need to. An aggregated insurance provider platform, each Insurance policy requires a baseAmount and also a minFlowRate. The baseAmount is automatically staked when the user buys a policy through us and it generates our own  ERC20 Utility Token. This token can then be redeemed by the user (different % depending on whether they have claimed the insurance): Token can be used to subsidize future policy purchases
+/// @dev Only possible for a single policy for each wallet right now
 contract SafeZen is ERC721Enumerable, Ownable, Pausable {
     using Strings for uint256;
-
-    // MINTING
-    // EXTRACTING METADATA 
-    // SUPERFLUID -> FIGURE OUT TESTNET, FIGURE OUT SUPERTOKEN, 1. MINT, 2. START STREAM 3. CHECK ISACTIVE() 
-    // GOVERNANCE -> BEING ABLE TO CLAIM
-    // STAKING -> USER WILL BE ABLE TO CLAIM X AMOUNT OF TOKEN (OUR OWN TOKEN) FROM STAKING CONTRACT
 
     // SUPERFLUID PARAMETERS
     ISuperfluid private _host; // host
@@ -47,7 +45,15 @@ contract SafeZen is ERC721Enumerable, Ownable, Pausable {
         string textHue;
         string bgHue;
     }
- 
+    
+    /// @notice Constructor for ERC721
+    /// @param _name Name of the ERC721 token
+    /// @param _symbol Symbol of the ERC721 token
+    /// @param host Superfluid host contract ( reference from Superfluid Docs )
+    /// @param cfa Superfluid Central Flow Agreement Contract ( reference from Superfluid Docs )
+    /// @param acceptedToken superToken that is accepted for stream ( reference from Superfluid Docs )
+    /// @param stakingCA contract address of the staking contract that handles yield
+    /// @param govCA contract address of the governance contract that handles the claim submission
     constructor(
         string memory _name,
         string memory _symbol,
@@ -69,7 +75,13 @@ contract SafeZen is ERC721Enumerable, Ownable, Pausable {
         govContract = GovContract(govCA);
     }
 
-    function mint(string memory _policyType, uint256 _coverageAmount, string memory _merchant, int96 _minFlowRate, uint256 _purchaseTime, uint256 _baseAmount) public  payable{
+    /// @notice Constructor for ERC721
+    /// @param _policyType A combination of the category + specific type (e.g. VEHICLE-CAR)
+    /// @param _coverageAmount Amount that user wants to be insured
+    /// @param _merchant Provider for the insurance package 
+    /// @param _minFlowRate Min charges per second calculated from per day on the frontend
+    /// @param _baseAmount Min fee that nuser needs to pay to own the policy (varies with coverage)
+    function mint(string memory _policyType, uint256 _coverageAmount, string memory _merchant, int96 _minFlowRate, uint256 _baseAmount) public  payable{
         uint256 supply = totalSupply();
 
         Policy memory newPolicy = Policy(
@@ -79,7 +91,7 @@ contract SafeZen is ERC721Enumerable, Ownable, Pausable {
             _coverageAmount,
             _merchant,
             _minFlowRate,
-            _purchaseTime,
+            block.timestamp, // purchaseTime
             false, // If policy is Active
             0, // Amount Paid
             _baseAmount,
@@ -95,11 +107,14 @@ contract SafeZen is ERC721Enumerable, Ownable, Pausable {
     /**************************************************************************
      * UTIL FUNCTIONS
      *************************************************************************/
+    // @dev Generates a random number (used for BG hue and text hue)
     function randomNum(uint256 _mod, uint256 _seed, uint256 _salt) public view returns(uint256){
        uint256 num = uint256(keccak256(abi.encodePacked(block.timestamp, msg.sender, _seed, _salt))) % _mod;
 
        return num;
     }
+    
+    // @dev Converts address type to string, remember to add 0x infront
     function toAsciiString(address x) internal pure returns (string memory) {
         bytes memory s = new bytes(40);
         for (uint i = 0; i < 20; i++) {
@@ -112,12 +127,15 @@ contract SafeZen is ERC721Enumerable, Ownable, Pausable {
         return string(s);
     }
 
+    // @dev Helper function used in toAsciiString
     function char(bytes1 b) internal pure returns (bytes1 c) {
         if (uint8(b) < 10) return bytes1(uint8(b) + 0x30);
         else return bytes1(uint8(b) + 0x57);
     }
 
-    // Build the on-chain SVG for the policy
+    /// @notice Builds the on-chain SVG for the specific policy
+    /// @param _tokenId Policy ID which will also be the NFT token ID
+    /// @dev can change this to internal 
     function buildPolicy(uint256 _tokenId) public view returns(string memory) {
         // Retrieve policy 
         Policy memory currentPolicy = policies[_tokenId];
@@ -125,12 +143,11 @@ contract SafeZen is ERC721Enumerable, Ownable, Pausable {
         // Formate date format for purchaseTime
         (uint256 purchaseYear, uint256 purchaseMonth, uint256 purchaseDay) = DateTime.timestampToDate(currentPolicy.purchaseTime);
 
-        //TODO: fix the isActive function and use that in the on-chain svg
         // convert bool to string for isActive
-        // string memory isPolicyActive = isActive(_tokenId) ? "True":"False";
+        string memory isPolicyActive = isActive(_tokenId) ? "True":"False";
         
 
-        // ========== BUILDING POLICY ON-CHAIN SVG IMAG ========== /
+        // ========== BUILDING POLICY ON-CHAIN SVG IMAGE ========== /
         bytes memory p1 = abi.encodePacked(
             '<svg width="500" height="500" xmlns="http://www.w3.org/2000/svg">',
             '<rect y="0" fill="hsl(',currentPolicy.bgHue,',100%,80%)" stroke="#000" x="-0.5" width="500" height="500"/>',
@@ -147,16 +164,20 @@ contract SafeZen is ERC721Enumerable, Ownable, Pausable {
             '<text dominant-baseline="middle" text-anchor="middle" font-family="Noto Sans JP" font-size="20" y="350" x="50%" fill="#000000">','Purchase Date: ',Strings.toString(purchaseDay),'/',Strings.toString(purchaseMonth),'/',Strings.toString(purchaseYear),'</text>'
         );
         bytes memory p4 = abi.encodePacked(
-            '<text dominant-baseline="middle" text-anchor="middle" font-family="Noto Sans JP" font-size="20" y="400" x="50%" fill="#000000">','isActive: ','True','</text>',
+            '<text dominant-baseline="middle" text-anchor="middle" font-family="Noto Sans JP" font-size="20" y="400" x="50%" fill="#000000">','isActive: ',isPolicyActive,'</text>',
             '</svg>'
         );
 
         return Base64.encode(bytes.concat(p1,p2,p3,p4));
     }
 
-    // build Metadata to return for TokenURI, returns the attributes of the policy as well
+    /// @notice Builds the metadata required in accordance ot Opensea requirements
+    /// @param _tokenId Policy ID which will also be the NFT token ID
+    /// @dev Can change public to internal
     function buildMetadata(uint256 _tokenId) public view returns(string memory) {
         Policy memory currentPolicy = policies[_tokenId];
+        string memory isPolicyActive = isActive(_tokenId) ? "True":"False";
+
         bytes memory m1 = abi.encodePacked(
             '{"name":"',
             currentPolicy.policyType,
@@ -197,7 +218,7 @@ contract SafeZen is ERC721Enumerable, Ownable, Pausable {
         bytes memory m3 = abi.encodePacked(// policyID
             '{"trait_type":"Active",',
             '"value":"',
-            'False', // TODO: update with the isActive() function after debug
+            isPolicyActive,
             '"},',
              // policyID
             '{"trait_type":"AmountPaid",',
@@ -215,30 +236,35 @@ contract SafeZen is ERC721Enumerable, Ownable, Pausable {
         Base64.encode(bytes.concat(m1,m2,m3))));
     }
 
+    /// @notice Calls on BuildMetadata -> BuildPolicy and return required format 
+    /// @param _tokenId Policy ID which will also be the NFT token ID
     function tokenURI(uint256 _tokenId) public view virtual override returns (string memory) {
         require(_exists(_tokenId), "ERC721Metadata: URI query for nonexistent token");
         return buildMetadata(_tokenId);
     }
 
-    //TODO: getFlow is returning error with no error message, check from superFluid discord
+    /// @notice Retrieves the active state of the policy based on incoming flowRate from holder 
+    /// @param _policyId Policy ID which will also be the NFT token ID
+    /// @dev We are only able to handle 1 policy per holder, transfers will not terminate stream if the user did not manually delete flow but once the holder changes it should be reflected as non-active since there is no flow from the new holder
     function isActive(uint256 _policyId) public view returns(bool) {
+
         (, int96 flowrate, , ) = _cfa.getFlow(  // gets details on whether the policy owner is streaming or not
             _acceptedToken, // superToken used
             getHolder(_policyId), // sender of the flow
             address(this) // receiver of the flow
         );
-        return flowrate >= policies[_policyId].minFlowRate; // is flowrate more than the minimum required?
+        return flowrate >= policies[_policyId].minFlowRate; 
     }
 
-    // getPolicies: do this off-chain with moralis
-
-    // Get the current holder of a specific policy
-    function getHolder(uint256 _policyID) public view returns (address) {
-        Policy memory currentPolicy = policies[_policyID];
+    /// @notice Retrieves the wallet address of the policy holder
+    /// @param _policyId Policy ID which will also be the NFT token ID
+    function getHolder(uint256 _policyId) public view returns (address) {
+        Policy memory currentPolicy = policies[_policyId];
         address holder = currentPolicy.policyHolder;
         return holder;
     }
 
+    /// @dev override logic to change policy holder when NFT is transferred between wallets
     function _beforeTokenTransfer(
         address from,
         address to,
@@ -249,8 +275,6 @@ contract SafeZen is ERC721Enumerable, Ownable, Pausable {
         Policy storage currentPolicy = policies[tokenId];
         // Change policy holder wallet address
         currentPolicy.policyHolder = to; 
-        // Reset necessary parameters for the policy
-        currentPolicy.isActive = false;
     }
     
     // ================= OWNER FUNCTIONS ================= //
