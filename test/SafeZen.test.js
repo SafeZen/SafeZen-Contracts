@@ -102,13 +102,12 @@ beforeEach(async function () {
   await daixUpgradeOperation.exec(accounts[0]);
 
   const daiBal = await daix.balanceOf({account: accounts[0].address, providerOrSigner: accounts[0]});
-  console.log('daix bal for acct 0:', daiBal);
 })
 
 describe("minting policy", async function () {
 	it("Mints a single Policy", async () => {
 
-		const mintTxn = await SafeZen.connect(accounts[0]).mint("CAR", 100, "AIA", 69000000, 123, 369);
+		const mintTxn = await SafeZen.connect(accounts[0]).mint("CAR", 100, "AIA", 69000000, 1000);
 
 		userBalance = await SafeZen.balanceOf(accounts[0].address);
 		isPolicyActive = await SafeZen.isActive(1);
