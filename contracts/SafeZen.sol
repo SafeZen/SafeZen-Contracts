@@ -75,6 +75,7 @@ contract SafeZen is ERC721Enumerable, Ownable, Pausable {
         govContract = GovContract(govCA);
     }
 
+    // TODO: Transfer baseAmount fee over to the Staking smart contract
     /// @notice Constructor for ERC721
     /// @param _policyType A combination of the category + specific type (e.g. VEHICLE-CAR)
     /// @param _coverageAmount Amount that user wants to be insured
@@ -82,8 +83,10 @@ contract SafeZen is ERC721Enumerable, Ownable, Pausable {
     /// @param _minFlowRate Min charges per second calculated from per day on the frontend
     /// @param _baseAmount Min fee that nuser needs to pay to own the policy (varies with coverage)
     function mint(string memory _policyType, uint256 _coverageAmount, string memory _merchant, int96 _minFlowRate, uint256 _baseAmount) public  payable{
+        //TODO: user sends enought ETH for the baseAmount
         uint256 supply = totalSupply();
 
+        //TODO: Add hasClaimed for each policy
         Policy memory newPolicy = Policy(
             msg.sender,
             supply + 1, // tokenID
@@ -263,6 +266,9 @@ contract SafeZen is ERC721Enumerable, Ownable, Pausable {
         address holder = currentPolicy.policyHolder;
         return holder;
     }
+
+    //TODO: Add updateHasClaim function for each policy so that Governance contract can call
+
 
     /// @dev override logic to change policy holder when NFT is transferred between wallets
     function _beforeTokenTransfer(
