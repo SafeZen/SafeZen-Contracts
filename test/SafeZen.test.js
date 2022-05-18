@@ -192,6 +192,11 @@ describe("Activating a flow", async function () {
 	})
 
 	it("Policy should not be active if flow is insufficient", async () => {
+		const SafeZenInitialBalance = await daix.balanceOf({
+			account: SafeZen.address,
+			providerOrSigner: accounts[0]
+		});
+		
 		const createFlowOperation = sf.cfaV1.createFlow({
 			receiver: SafeZen.address,
 			superToken: daix.address,
@@ -219,7 +224,7 @@ describe("Activating a flow", async function () {
 			account: SafeZen.address,
 			providerOrSigner: superSigner
 		})
-		
+
 		assert.equal(SafeZenFlowRate, "10000", "App flow rate should be 0");
 		assert.equal(ownerFlowRate, "-10000", "Owner flow rate should be 0")
 		assert.equal(SafeZenFinalBalance-SafeZenInitialBalance,SafeZenFlowRate*TEST_TRAVEL_TIME, "Wrong balance from flowrate")
