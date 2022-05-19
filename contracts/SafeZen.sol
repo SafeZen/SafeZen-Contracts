@@ -78,7 +78,6 @@ contract SafeZen is ERC721Enumerable, Ownable, Pausable, ReentrancyGuard {
         govContract = Governance(govCA);
     }
 
-    // TODO: Transfer baseAmount fee over to the Staking smart contract
     /// @notice Constructor for ERC721
     /// @param _policyType A combination of the category + specific type (e.g. VEHICLE-CAR)
     /// @param _coverageAmount Amount that user wants to be insured
@@ -285,7 +284,6 @@ contract SafeZen is ERC721Enumerable, Ownable, Pausable, ReentrancyGuard {
         (bool success, ) = _receiver.call{ value: _amount }("");
         require(success, "INSURANCE CLAIM TRANSFER FAILED");
     }
-
 
     /// @dev override logic to change policy holder when NFT is transferred between wallets
     function _beforeTokenTransfer(
