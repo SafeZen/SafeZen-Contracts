@@ -2,62 +2,66 @@
 pragma solidity ^0.8.0;
 
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
 import "@openzeppelin/contracts/security/Pausable.sol";
 import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
 import "./SafeZen.sol";
-import "./ERC20RewardToken.sol";
 
-contract Reward is Pausable, ReentrancyGuard {
-    IERC20 public rewardToken;
+contract StakingContract is ERC20, Pausable, ReentrancyGuard, Ownable {
 
-    // TODO: Documentation
+    SafeZen public safeZen;
+    // TODO: Documentation  
+    mapping(uint256 => bool) hasClaimedRewards;
 
-    constructor(address _rewardToken) {
-        rewardToken = IERC20(_rewardToken);
-    }
+    constructor() ERC20("SafeZenRewards","SZR") {}
 
     event TokenTransfer(address indexed _to, uint256 _rewardTokensCount);
     error TransactionFailure();
 
     function eligibleRewardTokenCount(uint256 _tokenID)
-        internal
+        public
+        view
         returns (uint256 _rewardTokenCounts)
     {
-        require(policies[_tokenID].policyHolder == msg.sender);
+        (,uint256 purchaseTime, uint256 baseAmount, bool hasClaimed) = safeZen.getRewardData(_tokenID);
+
         if (
             uint256(block.timestamp) <
-            (policies[_tokenID].purchaseTime + 7 days)
+            (purchaseTime + 7 days)
         ) {
-            _rewardTokenCounts = (policies[_tokenID].baseAmount * 10) / 100;
+            _rewardTokenCounts = (baseAmount * 10) / 100;
         } else if (
             (uint256(block.timestamp) <
-                (policies[_tokenID].purchaseTime + 30 days)) &&
+                (purchaseTime + 30 days)) &&
             (uint256(block.timestamp) >
-                (policies[_tokenID].purchaseTime + 7 days))
+                (purchaseTime + 7 days))
         ) {
-            _rewardTokenCounts = (policies[_tokenID].baseAmount * 20) / 100;
+            _rewardTokenCounts = (baseAmount * 20) / 100;
         } else {
-            _rewardTokenCounts = policies[_tokenID].baseAmount / 2;
+            _rewardTokenCounts = baseAmount / 2;
         }
         // hasClaimed needs to be defined in SafeZen.sol in the Policy struct section.
-        if (_hasClaimed) {
+        if (hasClaimed) {
             _rewardTokenCounts = _rewardTokenCounts / 2;
         }
 
         return _rewardTokenCounts;
     }
 
-    function claimRewardTokens(uint256 _tokenID) external {
-        _tokenCount = eligibleRewardTokenCount(_tokenID);
-        bool isSuccess = rewardToken.mint(
-            policies[_tokenID].policyHolder,
-            _tokenCount
-        );
-        if (!isSuccess) {
-            revert TransactionFailure();
-        }
-        emit TokenTransfer(policies[_tokenID].policyHolder, _tokenCount);
+    function claimRewardTokens(uint256 _tokenID) public {
+        (address policyHolder,,,) = safeZen.getRewardData(_tokenID);
+        require(policyHolder == msg.sender);
+
+        uint256 rewardTokenAmt = eligibleRewardTokenCount(_tokenID);
+        _mint(msg.sender, rewardTokenAmt);
+        hasClaimedRewards[_tokenID] = true; //makes sure that each policy can only be claimed once
+
+        emit TokenTransfer(policyHolder, rewardTokenAmt);
+    }
+    
+    function setSafeZenCA(address _safeZenCA) public onlyOwner{
+        safeZen = SafeZen(_safeZenCA);
     }
 
     function pause() public onlyOwner {
