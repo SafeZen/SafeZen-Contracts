@@ -9,16 +9,17 @@ import "@openzeppelin/contracts/token/ERC721/extensions/ERC721Enumerable.sol";
 import "@openzeppelin/contracts/security/Pausable.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
 import "@openzeppelin/contracts/utils/Strings.sol";
+import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
 import "./Base64.sol";
 import "./DateTime.sol";
 import "./StakingContract.sol";
-import "./GovContract.sol";
+import "./Governance.sol";
 
 /// @title SafeZen NFT contract with Superfluid
 /// @author Sean (@theLewBei)
 /// @notice The project allows users to be able to mint a specific policy that they need and stream only when they need to. An aggregated insurance provider platform, each Insurance policy requires a baseAmount and also a minFlowRate. The baseAmount is automatically staked when the user buys a policy through us and it generates our own  ERC20 Utility Token. This token can then be redeemed by the user (different % depending on whether they have claimed the insurance): Token can be used to subsidize future policy purchases
 /// @dev Only possible for a single policy for each wallet right now
-contract SafeZen is ERC721Enumerable, Ownable, Pausable {
+contract SafeZen is ERC721Enumerable, Ownable, Pausable, ReentrancyGuard {
     using Strings for uint256;
 
     // SUPERFLUID PARAMETERS
@@ -26,8 +27,9 @@ contract SafeZen is ERC721Enumerable, Ownable, Pausable {
     IConstantFlowAgreementV1 private _cfa; // the stored constant flow agreement class address
     ISuperToken public _acceptedToken; // accepted token
 
+    address govContractCA;
     StakingContract private stakingContract; 
-    GovContract private govContract;
+    Governance private govContract;
 
     mapping (uint256 => Policy) public policies;
 
@@ -40,6 +42,7 @@ contract SafeZen is ERC721Enumerable, Ownable, Pausable {
         int96 minFlowRate;
         uint256 purchaseTime;
         bool isActive;
+        bool hasClaimed;
         uint256 amountPaid;
         uint256 baseAmount; // Amount excluding the minFlowRate during activation
         string textHue;
@@ -72,7 +75,7 @@ contract SafeZen is ERC721Enumerable, Ownable, Pausable {
         assert(address(_acceptedToken) != address(0));
 
         stakingContract = StakingContract(stakingCA);
-        govContract = GovContract(govCA);
+        govContract = Governance(govCA);
     }
 
     // TODO: Transfer baseAmount fee over to the Staking smart contract
@@ -96,6 +99,7 @@ contract SafeZen is ERC721Enumerable, Ownable, Pausable {
             _minFlowRate,
             block.timestamp, // purchaseTime
             false, // If policy is Active
+            false,
             0, // Amount Paid
             _baseAmount,
             randomNum(361, block.difficulty, supply).toString(),
@@ -103,6 +107,7 @@ contract SafeZen is ERC721Enumerable, Ownable, Pausable {
         );
 
         policies[supply+1] = newPolicy;
+
         _safeMint(msg.sender, supply+1);
     }
 
@@ -267,7 +272,19 @@ contract SafeZen is ERC721Enumerable, Ownable, Pausable {
         return holder;
     }
 
-    //TODO: Add updateHasClaim function for each policy so that Governance contract can call
+    function getRewardData(uint256 _policyId) public view returns (address policyHolder, uint256 purchaseTime, uint256 baseAmount, bool hasClaimed) {
+        purchaseTime = policies[_policyId].purchaseTime;
+        baseAmount = policies[_policyId].baseAmount;
+        hasClaimed = policies[_policyId].hasClaimed;
+        policyHolder = policies[_policyId].policyHolder;
+    }
+
+    function sendInsuranceClaim(address _receiver, uint256 _amount) external {
+        require(msg.sender == govContractCA, "NOT GOV CONTRACT");
+
+        (bool success, ) = _receiver.call{ value: _amount }("");
+        require(success, "INSURANCE CLAIM TRANSFER FAILED");
+    }
 
 
     /// @dev override logic to change policy holder when NFT is transferred between wallets

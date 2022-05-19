@@ -68,7 +68,7 @@ before(async function() {
 
 	// Deploy mock Staking and Governance Contract
 	console.log(`Deploying Mock Contracts... from ${accounts[0].address}`);
-	govContract = await ethers.getContractFactory("GovContract");
+	govContract = await ethers.getContractFactory("Governance");
 	GovContract = await govContract.deploy();
 	
 	stakingContract = await ethers.getContractFactory("StakingContract")
