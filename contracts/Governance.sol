@@ -85,7 +85,7 @@ contract Governance is Ownable{
     }
 
     ///@notice Function is used to check what decision is taken based on the number of votes for/against
-requires a minimum participation
+    ///requires a minimum participation
    ///@params _claimID : ID that identifies the Claim
     function checkDecision(uint256 _claimID) public view returns (bool decision) {
         Claim storage currentClaim = claims[_claimID];
