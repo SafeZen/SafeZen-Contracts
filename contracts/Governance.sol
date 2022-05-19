@@ -3,20 +3,20 @@ pragma solidity ^0.8.7;
 import "./SafeZen.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
 
-contract Governance is Ownable{
+contract Governance is Ownable {
     SafeZen safeZen;
 
     uint256 public minPercVotes = 50;
     uint256 public tokenHolderCount;
 
-    struct Claim{
+    struct Claim {
         address Owner;
-        uint Policy_ID;
+        uint256 Policy_ID;
         string Proof;
         uint256 claimAmount;
-        uint No_of_Votes_for;
-        uint No_of_Votes_against;
-        uint Total_Votes;
+        uint256 No_of_Votes_for;
+        uint256 No_of_Votes_against;
+        uint256 Total_Votes;
         bool claimSuccessful;
     }
 
@@ -25,79 +25,102 @@ contract Governance is Ownable{
     mapping(address => bool) isTokenHolder;
 
     constructor() {}
-    
-    ///@notice Function gives Governance Token Holder privileges
-    ///@params _newHolder the address which will be added as the governance token holder
+
+    /// @notice Function gives Governance Token Holder privileges
+    /// @param _newHolder the address which will be added as the governance token holder
     function addGovHolder(address _newHolder) public onlyOwner {
         isTokenHolder[_newHolder] = true;
         tokenHolderCount++;
     }
-    
-    ///@notice Function removes governance token holder
-    ///@params _newHolder the address which will be removed as the governance token holder
+
+    /// @notice Function removes governance token holder
+    /// @param _newHolder the address which will be removed as the governance token holder
     function removeGovHolder(address _newHolder) public onlyOwner {
         isTokenHolder[_newHolder] = false;
         tokenHolderCount--;
     }
 
-    ///@notice Function is used to Cast a Vote
-    ///@params Voting_side : if true, then it votes for passing the claim
-		          ///if false, then it votes against passing the claim
-    ///@params _claimID : ID that identifies a claim
+    /// @notice Function is used to Cast a Vote
+    /// @param Voting_side : if true, then it votes for passing the claim
+    ///if false, then it votes against passing the claim
+    /// @param _claimID : ID that identifies a claim
     function Vote(bool Voting_side, uint256 _claimID) public {
         require(isTokenHolder[msg.sender], "NOT TOKEN HOLDER");
         Claim storage currentClaim = claims[_claimID];
         require(!hasVoted[_claimID][msg.sender], "USER HAS VOTED");
         require(!currentClaim.claimSuccessful, "CLAIM IS ALREADY APPROVED");
 
-        if (Voting_side == true){
-                currentClaim.Total_Votes+=1;
-                currentClaim.No_of_Votes_for+=1;
+        if (Voting_side == true) {
+            currentClaim.Total_Votes += 1;
+            currentClaim.No_of_Votes_for += 1;
         }
 
-        if (Voting_side == false){
-                currentClaim.Total_Votes+=1;
-                currentClaim.No_of_Votes_against+=1;
-        } 
+        if (Voting_side == false) {
+            currentClaim.Total_Votes += 1;
+            currentClaim.No_of_Votes_against += 1;
+        }
 
         hasVoted[_claimID][msg.sender] = true;
 
-        if(checkDecision(_claimID)){
-            if(currentClaim.claimSuccessful==false){
+        if (checkDecision(_claimID)) {
+            if (currentClaim.claimSuccessful == false) {
                 // Call NFT contract to transfer ETH to user
-                safeZen.sendInsuranceClaim(currentClaim.Owner, currentClaim.claimAmount);
+                safeZen.sendInsuranceClaim(
+                    currentClaim.Owner,
+                    currentClaim.claimAmount
+                );
                 currentClaim.claimSuccessful = true;
             }
         }
     }
 
-    ///@notice Function is used to Apply for a Claim by the user
-    ///@params _policyID : policyID for the policy bought by the buyer
-	    ///_Proof : Document that user uploads as proof
-            ///_claimAmount : Amount applied for claim
+    /// @notice Function is used to Apply for a Claim by the user
+    /// @param _policyID : policyID for the policy bought by the buyer
+    ///_Proof : Document that user uploads as proof
+    ///_claimAmount : Amount applied for claim
 
-    function ApplyClaim(uint256 _policyID,string memory _Proof, uint256 _claimAmount) public {
+    function ApplyClaim(
+        uint256 _policyID,
+        string memory _Proof,
+        uint256 _claimAmount
+    ) public {
         address policyHolder = safeZen.getHolder(_policyID);
-        require( msg.sender == policyHolder, "NOT POLICY HOLDER");
+        require(msg.sender == policyHolder, "NOT POLICY HOLDER");
 
-        Claim memory _claim = Claim(msg.sender,_policyID,_Proof,_claimAmount,0,0,0,false);
+        Claim memory _claim = Claim(
+            msg.sender,
+            _policyID,
+            _Proof,
+            _claimAmount,
+            0,
+            0,
+            0,
+            false
+        );
         claims[_policyID] = _claim;
     }
 
-    ///@notice Function is used to check what decision is taken based on the number of votes for/against
+    /// @notice Function is used to check what decision is taken based on the number of votes for/against
     ///requires a minimum participation
-   ///@params _claimID : ID that identifies the Claim
-    function checkDecision(uint256 _claimID) public view returns (bool decision) {
+    /// @param _claimID : ID that identifies the Claim
+    function checkDecision(uint256 _claimID)
+        public
+        view
+        returns (bool decision)
+    {
         Claim storage currentClaim = claims[_claimID];
-        require(currentClaim.Total_Votes >= tokenHolderCount/2, "NOT ENOUGH HAS VOTED");
+        require(
+            currentClaim.Total_Votes >= tokenHolderCount / 2,
+            "NOT ENOUGH HAS VOTED"
+        );
 
-        uint256 minRequiredVotes =  (tokenHolderCount * minPercVotes) / 100;
+        uint256 minRequiredVotes = (tokenHolderCount * minPercVotes) / 100;
 
-        if(currentClaim.No_of_Votes_for >= minRequiredVotes){
+        if (currentClaim.No_of_Votes_for >= minRequiredVotes) {
             return true;
         }
 
-        if(currentClaim.No_of_Votes_against > minRequiredVotes){
+        if (currentClaim.No_of_Votes_against > minRequiredVotes) {
             return false;
         }
     }
