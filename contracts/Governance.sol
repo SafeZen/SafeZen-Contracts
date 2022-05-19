@@ -25,16 +25,22 @@ contract Governance is Ownable{
     mapping(address => bool) isTokenHolder;
 
     constructor() {}
-
+    
+    @notice Function gives Governance Token Holder privileges
     function addGovHolder(address _newHolder) public onlyOwner {
         isTokenHolder[_newHolder] = true;
         tokenHolderCount++;
     }
-
+    
+    @notice Function removes governance token holder
     function removeGovHolder(address _newHolder) public onlyOwner {
         isTokenHolder[_newHolder] = false;
         tokenHolderCount--;
     }
+
+    @notice Function is used to Cast a Vote
+    @params Voting_side : if true, then it votes for passing the claim
+		                  if false, then it votes against passing the claim
 
     function Vote(bool Voting_side, uint256 _claimID) public {
         require(isTokenHolder[msg.sender], "NOT TOKEN HOLDER");
@@ -63,6 +69,7 @@ contract Governance is Ownable{
         }
     }
 
+    @notice Function is used to Apply for a Claim by the user
     function ApplyClaim(uint256 _policyID,string memory _Proof, uint256 _claimAmount) public {
         address policyHolder = safeZen.getHolder(_policyID);
         require( msg.sender == policyHolder, "NOT POLICY HOLDER");
@@ -71,7 +78,8 @@ contract Governance is Ownable{
         claims[_policyID] = _claim;
     }
 
-
+    @notice Function is used to check what decision is taken based on the number of votes for/against
+requires a minimum participation
     function checkDecision(uint256 _claimID) public view returns (bool decision) {
         Claim storage currentClaim = claims[_claimID];
         require(currentClaim.Total_Votes >= tokenHolderCount/2, "NOT ENOUGH HAS VOTED");
