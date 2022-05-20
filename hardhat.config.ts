@@ -26,14 +26,14 @@ task("newwallet", "Generate New Wallet", async (taskArgs, hre) => {
   console.log("PK: ", wallet._signingKey().privateKey);
   console.log("Address: ", wallet.address);
 });
-
+console.log(process.env.POLYGONSCAN_API_KEY);
 // Setup Default Values
-let PRIVATE_KEY;
-if (process.env.PRIVATE_KEY) {
-  PRIVATE_KEY = process.env.PRIVATE_KEY;
+let MAIN_PRIVATE_KEY;
+if (process.env.MAIN_PRIVATE_KEY) {
+  MAIN_PRIVATE_KEY = process.env.MAIN_PRIVATE_KEY;
 } else {
-  console.log("⚠️ Please set PRIVATE_KEY in the .env file");
-  PRIVATE_KEY = ethers.Wallet.createRandom()._signingKey().privateKey;
+  console.log("⚠️ Please set MAIN_PRIVATE_KEY in the .env file");
+  MAIN_PRIVATE_KEY = ethers.Wallet.createRandom()._signingKey().privateKey;
 }
 
 if (!process.env.INFURA_API_KEY) {
@@ -68,22 +68,22 @@ module.exports = {
 		mainnet: {
 			url: `https://mainnet.infura.io/v3/${process.env.INFURA_API_KEY}`,
 			chainId: 1,
-			accounts: [PRIVATE_KEY],
+			accounts: [MAIN_PRIVATE_KEY],
 		},
 		rinkeby: {
 			url: `https://rinkeby.infura.io/v3/${process.env.INFURA_API_KEY}`,
 			chainId: 4,
-			accounts: [PRIVATE_KEY],
+			accounts: [MAIN_PRIVATE_KEY],
 		},
 		// matic: {
 		//   url: "https://polygon-rpc.com/",
 		//   chainId: 137,
-		//   accounts: [PRIVATE_KEY],
+		//   accounts: [MAIN_PRIVATE_KEY],
 		// },
 		mumbai: {
-			url: 'https://rpc-mumbai.matic.today',
+			url: 'https://matic-mumbai.chainstacklabs.com',
 			chainId: 80001,
-			accounts: [PRIVATE_KEY],
+			accounts: [MAIN_PRIVATE_KEY],
 		},
 	},
 	solidity: {
@@ -110,7 +110,7 @@ module.exports = {
 		deployer: 0
 	},
 	etherscan: {
-		apiKey: process.env.ETHERSCAN_API_KEY,
+		apiKey: process.env.POLYGONSCAN_API_KEY
 	},
 
 	paths: {
