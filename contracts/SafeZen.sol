@@ -236,7 +236,7 @@ contract SafeZen is ERC721Enumerable, Ownable, Pausable, ReentrancyGuard {
             '{"trait_type":"BaseAmount",',
             '"value":"',
             Strings.toString(currentPolicy.baseAmount), 
-            '"},',
+            '"}',
             ']}');
         return string(abi.encodePacked(
         'data:application/json;base64,',
