@@ -14,7 +14,9 @@ contract StakingContract is ERC20, Pausable, ReentrancyGuard, Ownable {
     // TODO: Documentation  
     mapping(uint256 => bool) hasClaimedRewards;
 
-    constructor() ERC20("SafeZenRewards","SZR") {}
+    constructor(string memory _name, string memory _symbol) ERC20(_name, _symbol) {
+        
+    }
 
     event TokenTransfer(address indexed _to, uint256 _rewardTokensCount);
     error TransactionFailure();
