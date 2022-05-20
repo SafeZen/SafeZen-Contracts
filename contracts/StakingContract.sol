@@ -82,6 +82,7 @@ contract StakingContract is ERC20, Pausable, ReentrancyGuard, Ownable {
     function claimRewardTokens(uint256 _tokenID) public {
         (address policyHolder, , , ) = safeZen.getRewardData(_tokenID);
         require(policyHolder == msg.sender);
+        require(!hasClaimedRewards[_tokenID], "ALREADY CLAIMED");
 
         uint256 rewardTokenAmt = eligibleRewardTokenCount(_tokenID);
         _mint(msg.sender, rewardTokenAmt);
