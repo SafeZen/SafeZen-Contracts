@@ -29,6 +29,10 @@ contract Governance is Ownable {
     /// @notice Function gives Governance Token Holder privileges
     /// @param _newHolder the address which will be added as the governance token holder
     function addGovHolder(address _newHolder) public onlyOwner {
+        require(
+            !checkIfTokenHolder(_newHolder),
+            "Account already has governance token"
+        );
         isTokenHolder[_newHolder] = true;
         tokenHolderCount++;
     }
@@ -36,8 +40,28 @@ contract Governance is Ownable {
     /// @notice Function removes governance token holder
     /// @param _newHolder the address which will be removed as the governance token holder
     function removeGovHolder(address _newHolder) public onlyOwner {
+        require(
+            checkIfTokenHolder(_newHolder),
+            "Account does not have governance token"
+        );
         isTokenHolder[_newHolder] = false;
         tokenHolderCount--;
+    }
+
+    /// @notice Function returns value from isTokenHolder mapping with key of @param
+    /// @param _newHolder the address whose value from isTokenHolder will be returned
+    function checkIfTokenHolder(address _newHolder)
+        public
+        view
+        onlyOwner
+        returns (bool)
+    {
+        return isTokenHolder[_newHolder];
+    }
+
+    /// @notice Function returns number of accounts with governance token
+    function getTokeHolderCount() public view returns (uint256) {
+        return tokenHolderCount;
     }
 
     /// @notice Function is used to Cast a Vote
