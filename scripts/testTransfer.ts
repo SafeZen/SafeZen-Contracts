@@ -10,7 +10,7 @@ async function main() {
 
   const safezenContract: SafeZen = await ethers.getContract("SafeZen", signer);
   let tx = await (
-    await safezenContract.mint("CAR", 100, "AIA", 69, 123, 369)
+    await safezenContract.mint("CAR", 100, "AIA", 100, 69)
   ).wait();
   console.log("🚀 | main | tx", tx);
 
