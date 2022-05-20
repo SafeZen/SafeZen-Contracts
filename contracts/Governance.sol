@@ -4,7 +4,7 @@ import "./SafeZen.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
 
 contract Governance is Ownable {
-    SafeZen safeZen;
+    SafeZen public safeZen;
 
     uint256 public minPercVotes = 50;
     uint256 public tokenHolderCount;
