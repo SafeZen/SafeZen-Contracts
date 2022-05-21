@@ -26,7 +26,7 @@ Because we are dealing with [Superfluid](https://www.superfluid.finance/). Pleas
 2. Central Flow Agreement Address
 3. Accepted SuperToken Address
 
-Our team has chosen Polygon as our deployment blockchain and will be using the Mumbai testnet.
+Our team has chosen [Polygon](https://polygon.technology/) as our deployment blockchain and will be using the Mumbai testnet.
 
 Step 1: To deploy SafeZen onto Mumbai:
 ```
