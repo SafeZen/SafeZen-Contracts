@@ -26,7 +26,6 @@ task("newwallet", "Generate New Wallet", async (taskArgs, hre) => {
   console.log("PK: ", wallet._signingKey().privateKey);
   console.log("Address: ", wallet.address);
 });
-console.log(process.env.POLYGONSCAN_API_KEY);
 // Setup Default Values
 let PRIVATE_KEY;
 if (process.env.PRIVATE_KEY) {
