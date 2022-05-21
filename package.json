@@ -7,9 +7,7 @@
 		"start": "npx hardhat node --tags 0",
 		"test": "npx hardhat test",
 		"deploy-mumbai": "npx hardhat deploy --network mumbai --tags SafeZen",
-		"deploy-mainnet": "npx hardhat deploy --network mainnet --tags SafeZen",
-		"verify-mainnet": "npx hardhat --network mainnet etherscan-verify",
-		"verify-rinkeby": "npx hardhat --network rinkeby etherscan-verify"
+		"verify-mumbai": "npx hardhat --network mumbai etherscan-verify"
 	},
 	"author": "",
 	"license": "ISC",

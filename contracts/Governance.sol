@@ -20,9 +20,9 @@ contract Governance is Ownable {
         bool claimSuccessful;
     }
 
-    mapping(uint256 => mapping(address => bool)) hasVoted;
-    mapping(uint256 => Claim) claims;
-    mapping(address => bool) isTokenHolder;
+    mapping(uint256 => mapping(address => bool)) public hasVoted;
+    mapping(uint256 => Claim) public claims;
+    mapping(address => bool) public isTokenHolder;
 
     constructor() {}
 

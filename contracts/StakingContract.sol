@@ -12,7 +12,7 @@ contract StakingContract is ERC20, Pausable, ReentrancyGuard, Ownable {
     SafeZen public safeZen;
 
     // @dev mapping to check whether the user has claimed the reward tokens or not
-    mapping(uint256 => bool) hasClaimedRewards;
+    mapping(uint256 => bool) public hasClaimedRewards;
 
     // @dev generating ERC20 reward token
     // @param _name : Reward token name, e.g. SafeZen Rewards
