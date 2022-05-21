@@ -66,12 +66,13 @@ before(async function () {
   dai = new ethers.Contract(daiAddress, daiABI, accounts[0]);
 
   // Deploy mock Staking and Governance Contract
-  console.log(`Deploying Mock Contracts... from ${accounts[0].address}`);
+  console.log('Deploying Governance Contract...');
   govContract = await ethers.getContractFactory('Governance');
   GovContract = await govContract.deploy();
 
+  console.log('Deploying Staking Contract...');
   stakingContract = await ethers.getContractFactory('StakingContract');
-  StakingContract = await stakingContract.deploy();
+  StakingContract = await stakingContract.deploy('SafeZenTokens', 'SZT');
 
   let safeZen = await ethers.getContractFactory('SafeZen', accounts[0]);
 
@@ -108,7 +109,7 @@ beforeEach(async function () {
   });
 });
 
-describe.skip('minting policy', async function () {
+describe('minting policy', async () => {
   it('Mints a single Policy', async () => {
     const mintTxn = await SafeZen.connect(accounts[0]).mint(
       'CAR',
@@ -125,7 +126,7 @@ describe.skip('minting policy', async function () {
   });
 });
 
-describe.skip('Activating a flow', async function () {
+describe('Activating a flow', async function () {
   it('User starts a flow - reflected correctly in balance', async () => {
     const SafeZenInitialBalance = await daix.balanceOf({
       account: SafeZen.address,
@@ -268,5 +269,47 @@ describe.skip('Activating a flow', async function () {
       false,
       'Policy should not be activated with insufficient flow'
     );
+  });
+});
+
+describe('Adding and Removing Governance Token holder', async () => {
+  it('Should give governance token to account', async () => {
+    await GovContract.addGovHolder(accounts[0].address);
+    const isHolder = await GovContract.checkIfTokenHolder(accounts[0].address);
+    assert.equal(isHolder, true, 'Account should have governace token');
+  });
+
+  it('Should return the number of accounts with governance tokens (1)', async () => {
+    await assert(
+      GovContract.getTokenHolderCount(),
+      1,
+      'Exactly 1 account should have a governance token'
+    );
+  });
+
+  it('Should attempt giving governance token and revert', async () => {
+    await expect(
+      GovContract.addGovHolder(accounts[0].address)
+    ).to.be.revertedWith('Account already has governance token');
+  });
+
+  it('Should remove governance token from account', async () => {
+    await GovContract.removeGovHolder(accounts[0].address);
+    const isHolder = await GovContract.checkIfTokenHolder(accounts[0].address);
+    assert.equal(isHolder, false, 'Account should have governace token');
+  });
+
+  it('Should return the number of accounts with governance tokens (0)', async () => {
+    await assert(
+      GovContract.getTokenHolderCount(),
+      0,
+      'No account should have a governance token'
+    );
+  });
+
+  it('Should attempt removing governance token and revert', async () => {
+    await expect(
+      GovContract.removeGovHolder(accounts[0].address)
+    ).to.be.revertedWith('Account does not have governance token');
   });
 });
