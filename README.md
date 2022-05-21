@@ -1,15 +1,42 @@
-# Basic Sample Hardhat Project
+# SafeZen Smart Contracts
+This repository contains all code written for project SafeZen as part of the HackMoney2022 Hackathon organised by ETHGlobal. The repository is powered by [Hardhat](https://hardhat.org/)
 
-This project demonstrates a basic Hardhat use case. It comes with a sample contract, a test for that contract, a sample script that deploys that contract, and an example of a task implementation, which simply lists the available accounts.
+Before running any scripts, install necessary packages:
+```
+npm install
+```
 
-Try running some of the following tasks:
+Make sure you set up your environment variables shown in `.env.example`
 
-```shell
-npx hardhat accounts
-npx hardhat compile
-npx hardhat clean
+---
+## Test Cases
+To run the test cases:
+```
 npx hardhat test
-npx hardhat node
-node scripts/sample-script.js
-npx hardhat help
+```
+This is a brief description of the purpose of the 3 main smart contracts for SafeZen:
+1. **SafeZen.sol** - Main ERC721 SC that handles purchase and activation of on-chain insurance policies
+2. **Governance.sol** - Decentralised voting mechanism for handling insurance claims
+3. **StakingContract.sol** - Generates and calculates rewards based on policy purchases
+
+---
+## Deployment
+Because we are dealing with [Superfluid](https://www.superfluid.finance/). Please ensure that the required contract addresses are accurate depending on the chain you are deploying on:
+1. Superfluid Host Address
+2. Central Flow Agreement Address
+3. Accepted SuperToken Address
+
+Our team has chosen Polygon as our deployment blockchain and will be using the Mumbai testnet.
+
+Step 1: To deploy SafeZen onto Mumbai:
+```
+npm run deploy-mumbai
+```
+Step 2: Update SafeZen CA for Governance and Staking contracts, remember to grab the latest deployed SafeZen CA and update in `setCA.ts`:
+```
+npm run updateCA-mumbai
+```
+Step 3 [optional]: Verify smart contracts:
+```
+npm run verify-mumbai
 ```
