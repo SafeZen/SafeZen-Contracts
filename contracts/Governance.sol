@@ -60,7 +60,7 @@ contract Governance is Ownable {
     }
 
     /// @notice Function returns number of accounts with governance token
-    function getTokeHolderCount() public view returns (uint256) {
+    function getTokenHolderCount() public view returns (uint256) {
         return tokenHolderCount;
     }
 

@@ -85,10 +85,9 @@ contract SafeZen is ERC721Enumerable, Ownable, Pausable, ReentrancyGuard {
     /// @param _minFlowRate Min charges per second calculated from per day on the frontend
     /// @param _baseAmount Min fee that nuser needs to pay to own the policy (varies with coverage)
     function mint(string memory _policyType, uint256 _coverageAmount, string memory _merchant, int96 _minFlowRate, uint256 _baseAmount) public  payable{
-        //TODO: user sends enought ETH for the baseAmount
+        //Require(msg.value >= _baseAmount) we are ignoring this for hackathon
         uint256 supply = totalSupply();
 
-        //TODO: Add hasClaimed for each policy
         Policy memory newPolicy = Policy(
             msg.sender,
             supply + 1, // tokenID
