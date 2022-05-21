@@ -6,7 +6,7 @@ import { SafeZen } from "../typechain/SafeZen";
 import { Governance } from "../typechain/Governance";
 import { StakingContract } from "../typechain/StakingContract";
 
-const safeZenAddress = "0xF64dd77E524e2b2781EBAf9d88028574390ACada"
+const safeZenAddress = "0xbe4511EBaa8530d17143e394c5e735C810a0b88a"
 
 async function main() {
   // Just use Hardhat Environment
