@@ -249,6 +249,18 @@ contract SafeZen is ERC721Enumerable, Ownable, Pausable, ReentrancyGuard {
         return buildMetadata(_tokenId);
     }
 
+    function getPolicyActivationTime(uint256 _policyId) public view returns(uint256) {
+        require(_exists(_policyId), "POLICY DOES NOT EXIST");
+        
+        (uint256 activateTimestamp, , , ) = _cfa.getFlow(  // gets details on whether the policy owner is streaming or not
+            _acceptedToken, // superToken used
+            getHolder(_policyId), // sender of the flow
+            address(this) // receiver of the flow
+        );
+
+        return activateTimestamp;
+    }
+
     /// @notice Retrieves the active state of the policy based on incoming flowRate from holder 
     /// @param _policyId Policy ID which will also be the NFT token ID
     /// @dev We are only able to handle 1 policy per holder, transfers will not terminate stream if the user did not manually delete flow but once the holder changes it should be reflected as non-active since there is no flow from the new holder

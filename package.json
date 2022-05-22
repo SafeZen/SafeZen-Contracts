@@ -8,7 +8,7 @@
 		"test": "npx hardhat test",
 		"deploy-mumbai": "npx hardhat deploy --network mumbai --tags SafeZen",
 		"verify-mumbai": "npx hardhat --network mumbai etherscan-verify",
-		"updateCA-mumbai": "npx hardhat run ./scripts/setCA.ts"
+		"updateCA-mumbai": "npx hardhat run ./scripts/setCA.ts --network mumbai"
 	},
 	"author": "",
 	"license": "ISC",
