@@ -4,6 +4,8 @@
 
 🖥️ Frontend: <https://github.com/SafeZen/SafeZen-Frontend>
 
+📦 Full Github Org: <[https://github.com/SafeZen/SafeZen-Frontend](https://github.com/SafeZen)>
+
 💡 Smart Contract: <https://github.com/SafeZen/SafeZen-Contracts>
 
 ---
