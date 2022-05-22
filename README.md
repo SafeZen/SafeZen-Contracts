@@ -1,3 +1,12 @@
+# SafeZen Defi Insurance Protocol
+
+🌐 Website: <https://safezen.vercel.app/>
+
+🖥️ Frontend: <https://github.com/SafeZen/SafeZen-Frontend>
+
+💡 Smart Contract: <https://github.com/SafeZen/SafeZen-Contracts>
+
+---
 # SafeZen Smart Contracts
 This repository contains all code written for project SafeZen as part of the HackMoney2022 Hackathon organised by ETHGlobal. The repository is powered by [Hardhat](https://hardhat.org/)
 
